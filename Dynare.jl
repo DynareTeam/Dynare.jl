@@ -24,19 +24,10 @@ function dynare(modfile)
     # Process modfile
     println(string("Using ", WORD_SIZE, "-bit preprocessor"))
     preprocessor = string(dirname(@__FILE__()), "/preprocessor", WORD_SIZE, "/dynare_m")
-    run(`$preprocessor $modfile`)
-
-    # Temporary: clean up Matlab output
-    basename = split(modfile, ".mod", false)
-    mfiles = filter(r".*\.m", readdir())
-    for file in mfiles
-        if isempty(search(file, ".mod"))
-            rm(file)
-        end
-    end
-    rm(basename[1], recursive=true)
+    run(`$preprocessor $modfile language=julia output=dynamic`)
 
     # Load module created by preprocessor
+    basename = split(modfile, ".mod", false)
     require(basename[1])
 end
 
