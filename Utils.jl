@@ -1,4 +1,4 @@
-module utils
+module Utils
 ##
  # Copyright (C) 2015 Dynare Team
  #
