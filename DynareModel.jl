@@ -19,7 +19,7 @@ module DynareModel
 ##
 
 
-export Endo, Exo, ExoDet, Param, Model
+export Endo, Exo, ExoDet, Param, model
 
 abstract Atom
 
@@ -84,19 +84,19 @@ type Model
     maximum_exo_lag::Int
     maximum_exo_lead::Int
     lead_lag_incidence::Matrix{Int}
-    NNZDerivatives::Vector{Int}
+    nnzderivatives::Vector{Int}
     static_and_dynamic_models_differ::Bool
     equations_tags::Array{ASCIIString,1}
     exo_names_orig_ord::Array{Int, 1}
-    Sigma_e::Matrix{Float64}
-    Correlation_matrix::Matrix{Float64}
-    H::Matrix{Float64}
-    Correlation_matrix_ME::Matrix{Float64}
+    sigma_e::Matrix{Float64}
+    correlation_matrix::Matrix{Float64}
+    h::Matrix{Float64}
+    correlation_matrix_me::Matrix{Float64}
     sigma_e_is_diagonal::Bool
     params::Vector{Float64}
 end
 
-function Model()
+function model()
     return Model("",                    # fname
                  "",                    # dname
                  Array(Endo,0),         # endo
@@ -124,14 +124,14 @@ function Model()
                  0,                     # maximum_exo_lag
                  0,                     # maximum_exo_lead
                  Array(Int, 3, 0),      # lead_lag_incidence
-                 zeros(Int, 3),         # NNZDerivatives
+                 zeros(Int, 3),         # nnzderivatives
                  false,                 # static_and_dynamic_models_differ
                  Array(ASCIIString,0),  # equations_tags
                  Array(Int64,1),        # exo_names_orig_ord
-                 Array(Float64, 0, 0),  # Sigma_e (Covariance matrix of the structural innovations)
-                 Array(Float64, 0, 0),  # Correlation_matrix (Correlation matrix of the structural innovations)
-                 Array(Float64, 0, 0),  # H (Covariance matrix of the measurement errors)
-                 Array(Float64, 0, 0),  # Correlation_matrix_ME (Covariance matrixof the measurement errors)
+                 Array(Float64, 0, 0),  # sigma_e (Covariance matrix of the structural innovations)
+                 Array(Float64, 0, 0),  # correlation_matrix (Correlation matrix of the structural innovations)
+                 Array(Float64, 0, 0),  # h (Covariance matrix of the measurement errors)
+                 Array(Float64, 0, 0),  # correlation_matrix_me (Covariance matrixof the measurement errors)
                  true,                  # sigma_e_is_diagonal
                  Array(Float64, 0)      # params
                 )

@@ -18,9 +18,9 @@ module Utils
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-export getPowerDeriv
+export get_power_deriv
 
-function getPowerDeriv(x::Float64, p::Real, k::Int)
+function get_power_deriv(x::Float64, p::Real, k::Int)
     if abs(x)<1e-12 && p>0 && k>p && typeof(p)==Int
         dxp = .0
     else
