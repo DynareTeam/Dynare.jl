@@ -105,6 +105,7 @@ type Model
     sigma_e_is_diagonal::Bool
     params::Vector{Float64}
     static::Function
+    dynamic::Function
 end
 
 function model()
@@ -148,6 +149,7 @@ function model()
                  true,                  # sigma_e_is_diagonal
                  Array(Float64, 0),     # params
                  function()end,         # static
+                 function()end,         # dynamic
                 )
 end
 
