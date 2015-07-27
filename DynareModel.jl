@@ -104,6 +104,7 @@ type Model
     correlation_matrix_me::Matrix{Float64}
     sigma_e_is_diagonal::Bool
     params::Vector{Float64}
+    static::Function
 end
 
 function model()
@@ -145,7 +146,8 @@ function model()
                  Array(Float64, 0, 0),  # h (Cov matrix of the measurement errors)
                  Array(Float64, 0, 0),  # correlation_matrix_me (Cov matrix of the measurement errors)
                  true,                  # sigma_e_is_diagonal
-                 Array(Float64, 0)      # params
+                 Array(Float64, 0),     # params
+                 function()end,         # static
                 )
 end
 
