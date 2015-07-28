@@ -21,6 +21,9 @@ module Dynare
 export dynare
 
 function dynare(modfile)
+    # Add cd to path
+    unshift!(LOAD_PATH, pwd())
+
     # Process modfile
     println(string("Using ", WORD_SIZE, "-bit preprocessor"))
     preprocessor = string(dirname(@__FILE__()), "/preprocessor", WORD_SIZE, "/dynare_m")
