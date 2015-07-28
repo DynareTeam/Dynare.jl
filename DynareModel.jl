@@ -107,6 +107,7 @@ type Model
     static::Function
     static_params_derivs::Function
     dynamic::Function
+    dynamic_params_derivs::Function
 end
 
 function model()
@@ -152,6 +153,7 @@ function model()
                  function()end,         # static
                  function()end,         # static_params_derivs
                  function()end,         # dynamic
+                 function()end,         # dynamic_params_derivs
                 )
 end
 
