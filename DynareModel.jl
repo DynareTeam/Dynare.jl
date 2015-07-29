@@ -19,7 +19,7 @@ module DynareModel
 ##
 
 
-export Endo, Exo, ExoDet, Param, model
+export Endo, Exo, ExoDet, Param, dynare_model
 
 abstract Atom
 
@@ -111,7 +111,7 @@ type Model
     steady_state::Function
 end
 
-function model()
+function dynare_model()
     return Model("",                    # fname
                  "",                    # dname
                  "",                    # dynare_version
