@@ -56,6 +56,14 @@ immutable AuxVars
     orig_expr::UTF8String
 end
 
+immutable PredVars
+    index::Int
+end
+
+immutable ObsVars
+    index::Int
+end
+
 immutable DetShocks
     exo_det::Int
     exo_id::Int
