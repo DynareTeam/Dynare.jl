@@ -23,10 +23,12 @@ export dynare_options
 
 type Options
     dynare_version::ASCIIString
+    linear::Bool
 end
 
 function dynare_options()
-    return Options(""          # dynare_version
+    return Options("",          # dynare_version
+                   false        # linear
                   )
 end
 
