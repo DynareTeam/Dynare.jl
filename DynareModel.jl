@@ -72,6 +72,12 @@ immutable DetShocks
     value::Float64
 end
 
+immutable EquationTag
+    eq_nbr::Int
+    name::UTF8String
+    value::UTF8String
+end
+
 type Model
     fname::ASCIIString
     dname::ASCIIString
@@ -104,14 +110,14 @@ type Model
     lead_lag_incidence::Matrix{Int}
     nnzderivatives::Vector{Int}
     static_and_dynamic_models_differ::Bool
-    equations_tags::Array{ASCIIString,1}
+    equations_tags::Array{UTF8String,1}
     exo_names_orig_ord::Array{Int, 1}
     sigma_e::Matrix{Float64}
     correlation_matrix::Matrix{Float64}
     h::Matrix{Float64}
     correlation_matrix_me::Matrix{Float64}
     sigma_e_is_diagonal::Bool
-    params::Vector{Float64}
+    params::Matrix{Float64}
     static::Function
     static_params_derivs::Function
     dynamic::Function
@@ -158,7 +164,7 @@ function dynare_model()
                  Array(Float64, 0, 0),  # h (Cov matrix of the measurement errors)
                  Array(Float64, 0, 0),  # correlation_matrix_me (Cov matrix of the measurement errors)
                  true,                  # sigma_e_is_diagonal
-                 Array(Float64, 0),     # params
+                 Array(Float64, 0, 0),  # params
                  function()end,         # static
                  function()end,         # static_params_derivs
                  function()end,         # dynamic
