@@ -18,7 +18,7 @@ module Dynare
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-export dynare
+export dynare, @dynare
 
 function dynare(modfile)
     # Add cd to path
@@ -32,6 +32,11 @@ function dynare(modfile)
     # Load module created by preprocessor
     basename = split(modfile, ".mod"; keep=false)
     require(basename[1])
+end
+
+
+macro dynare(modelname)
+    :(dynare($modelname))
 end
 
 end
