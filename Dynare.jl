@@ -21,8 +21,10 @@ module Dynare
 export dynare, @dynare
 
 function dynare(modfile)
-    # Add cd to path
-    unshift!(LOAD_PATH, pwd())
+    # Add cd to path if not already there
+    if isempty(findin([pwd()], LOAD_PATH))
+        unshift!(LOAD_PATH, pwd())
+    end
 
     # Process modfile
     println(string("Using ", WORD_SIZE, "-bit preprocessor"))
