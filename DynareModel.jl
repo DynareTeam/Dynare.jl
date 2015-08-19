@@ -68,7 +68,7 @@ immutable DetShocks
     exo_det::Int
     exo_id::Int
     multiplicative::Bool
-    periods::Array{Int,1}
+    periods::Vector{Int}
     value::Float64
 end
 
@@ -82,18 +82,18 @@ type Model
     fname::ASCIIString
     dname::ASCIIString
     dynare_version::ASCIIString
-    endo::Array{Endo,1}
-    exo::Array{Exo,1}
-    exo_det::Array{ExoDet,1}
-    param::Array{Param,1}
-    aux_vars::Array{AuxVars,1}
-    pred_vars::Array{Int,1}
-    obs_vars::Array{Int,1}
+    endo::Vector{Endo}
+    exo::Vector{Exo}
+    exo_det::Vector{ExoDet}
+    param::Vector{Param}
+    aux_vars::Vector{AuxVars}
+    pred_vars::Vector{Int}
+    obs_vars::Vector{Int}
     orig_endo_nbr::Int
     orig_eq_nbr::Int
     eq_nbr::Int
     ramsey_eq_nbr::Int
-    det_shocks::Array{DetShocks,1}
+    det_shocks::Vector{DetShocks}
     nstatic::Int
     nfwrd::Int
     npred::Int
@@ -110,8 +110,8 @@ type Model
     lead_lag_incidence::Matrix{Int}
     nnzderivatives::Vector{Int}
     static_and_dynamic_models_differ::Bool
-    equations_tags::Array{UTF8String,1}
-    exo_names_orig_ord::Array{Int, 1}
+    equations_tags::Vector{UTF8String}
+    exo_names_orig_ord::Vector{Int}
     sigma_e::Matrix{Float64}
     correlation_matrix::Matrix{Float64}
     h::Matrix{Float64}
