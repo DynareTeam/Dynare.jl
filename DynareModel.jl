@@ -110,7 +110,7 @@ type Model
     lead_lag_incidence::Matrix{Int}
     nnzderivatives::Vector{Int}
     static_and_dynamic_models_differ::Bool
-    equations_tags::Vector{UTF8String}
+    equation_tags::Vector{UTF8String}
     exo_names_orig_ord::Vector{Int}
     sigma_e::Matrix{Float64}
     correlation_matrix::Matrix{Float64}
@@ -157,7 +157,7 @@ function dynare_model()
                  Array(Int, 3, 0),      # lead_lag_incidence
                  zeros(Int, 3),         # nnzderivatives
                  false,                 # static_and_dynamic_models_differ
-                 Array(ASCIIString,0),  # equations_tags
+                 Array(ASCIIString,0),  # equation_tags
                  Array(Int64,1),        # exo_names_orig_ord
                  Array(Float64, 0, 0),  # sigma_e (Cov matrix of the structural innovations)
                  Array(Float64, 0, 0),  # correlation_matrix (Corr matrix of the structural innovations)
