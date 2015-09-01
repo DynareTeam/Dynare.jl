@@ -32,7 +32,7 @@ function dynare(modfile)
     run(`$preprocessor $modfile language=julia output=dynamic`)
 
     # Load module created by preprocessor
-    basename = split(modfile, ".mod", false)
+    basename = split(modfile, ".mod"; keep=false)
     require(basename[1])
 end
 
