@@ -109,6 +109,7 @@ type Model
     maximum_exo_lead::Int
     lead_lag_incidence::Matrix{Int}
     nnzderivatives::Vector{Int}
+    analytical_steady_state::Bool
     static_and_dynamic_models_differ::Bool
     equation_tags::Vector{UTF8String}
     exo_names_orig_ord::Vector{Int}
@@ -156,6 +157,7 @@ function dynare_model()
                  0,                     # maximum_exo_lead
                  Array(Int, 3, 0),      # lead_lag_incidence
                  zeros(Int, 3),         # nnzderivatives
+                 false,                 # analytical_steady_state
                  false,                 # static_and_dynamic_models_differ
                  Array(ASCIIString,0),  # equation_tags
                  Array(Int64,1),        # exo_names_orig_ord
