@@ -23,14 +23,14 @@ export dynare_output
 
 type Output
     dynare_version::ASCIIString
-    steady_state::Matrix{Float64}
-    exo_steady_state::Matrix{Float64}
+    steady_state::Vector{Float64}
+    exo_steady_state::Vector{Float64}
 end
 
 function dynare_output()
     return Output("",                   # dynare_version
-                  Array(Float64, 0, 0), # steady_state
-                  Array(Float64, 0, 0)  # exo_steady_state
+                  Array(Float64, 0), # steady_state
+                  Array(Float64, 0)  # exo_steady_state
                  )
 end
 
