@@ -34,10 +34,16 @@ end
 
 macro dynare(modfiles...)
     ex = Expr(:toplevel)
-    for modfile in modfiles
-        eval(:(compile($modfile)))
-        basename = split(modfile, ".mod"; keep=false)
-        push!(ex.args, Expr(:import, symbol(basename[1])))
+    if length(modfiles)>1
+        for modfile in modfiles
+            eval(:(compile($modfile)))
+            basename = split(modfile, ".mod"; keep=false)
+            push!(ex.args, Expr(:import, symbol(basename[1])))
+        end
+    else
+        eval(:(compile($modfiles)))
+        basename = split(modfiles[1], ".mod"; keep=false)
+        push!(ex.args, Expr(:importall, symbol(basename[1])))
     end
     return ex
 end
