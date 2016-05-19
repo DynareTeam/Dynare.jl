@@ -1,6 +1,7 @@
 module Dynare
+
 ##
- # Copyright (C) 2015 Dynare Team
+ # Copyright (C) 2015-2016 Dynare Team
  #
  # This file is part of Dynare.
  #
@@ -18,27 +19,33 @@ module Dynare
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-export dynare, @dynare
+export @compile, @dynare
 
-function dynare(modfile)
+function compile(modfile)
     # Add cd to path if not already there
     if isempty(findin([pwd()], LOAD_PATH))
         unshift!(LOAD_PATH, pwd())
     end
-
     # Process modfile
     println(string("Using ", WORD_SIZE, "-bit preprocessor"))
     preprocessor = string(dirname(@__FILE__()), "/preprocessor", WORD_SIZE, "/dynare_m")
     run(`$preprocessor $modfile language=julia output=dynamic`)
-
-    # Load module created by preprocessor
-    basename = split(modfile, ".mod"; keep=false)
-    require(basename[1])
 end
 
+macro dynare(modfiles...)
+    ex = Expr(:toplevel)
+    for modfile in modfiles
+        eval(:(compile($modfile)))
+        basename = split(modfile, ".mod"; keep=false)
+        push!(ex.args, Expr(:import, symbol(basename[1])))
+    end
+    return ex
+end
 
-macro dynare(modelname)
-    :(dynare($modelname))
+macro compile(modfiles...)
+    for modfile in modfiles
+        eval(:(compile($modfile)))
+    end
 end
 
 end
