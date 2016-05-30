@@ -4,7 +4,7 @@ using NLsolve
 
 export @var, @varexo, @parameters, @model, @modfile
 
-typealias MathExpr Union(Expr,Symbol,Number)
+typealias MathExpr Union{Expr,Symbol,Number}
 
 type Model
     endo::Vector{Symbol}
@@ -94,10 +94,10 @@ macro modfile(x)
 end
 
 # Fills a dictionnary which associates to each symbol its max lead and max lag
-scan_expr(e::Number, endo::Vector{Symbol}, lead_lags::Dict{Symbol,(Int,Int)}) = nothing
-scan_expr(e::Symbol, endo::Vector{Symbol}, lead_lags::Dict{Symbol,(Int,Int)}) = nothing
+scan_expr(e::Number, endo::Vector{Symbol}, lead_lags::Dict{Symbol,Tuple{Int,Int}}) = nothing
+scan_expr(e::Symbol, endo::Vector{Symbol}, lead_lags::Dict{Symbol,Tuple{Int,Int}}) = nothing
 
-function scan_expr(e::Expr, endo::Vector{Symbol}, lag_lead::Dict{Symbol,(Int,Int)})
+function scan_expr(e::Expr, endo::Vector{Symbol}, lag_lead::Dict{Symbol,Tuple{Int,Int}})
     if e.head == :call
         if !isempty(filter(x->x==e.args[1], endo))
             v = e.args[1]
@@ -119,7 +119,7 @@ end
 
 # Computes the zeta_* and their lengths (the n_*)
 function compute_var_categories(m::Model)
-    d = Dict{Symbol,(Int,Int)}()
+    d = Dict{Symbol,Tuple{Int,Int}}()
     for i = 1:m.n_endo
         d[m.endo[i]] = (0,0)
     end
@@ -142,7 +142,7 @@ function compute_var_categories(m::Model)
     end
     m.zeta_back_mixed = sort!(union(m.zeta_back, m.zeta_mixed))
     m.zeta_fwrd_mixed = sort!(union(m.zeta_fwrd, m.zeta_mixed))
-    m.zeta_dynamic = setdiff([ 1:m.n_endo ], m.zeta_static)
+    m.zeta_dynamic = setdiff(collect(1:m.n_endo), m.zeta_static)
 
     # Compute the length of the 7 vectors
     for t = (:back, :fwrd, :static, :mixed, :back_mixed, :fwrd_mixed, :dynamic)
@@ -249,7 +249,7 @@ function compute_dynamic_mf(m::Model)
         lead_dict[m.endo[m.zeta_fwrd_mixed[i]]] = lead_gensyms[i]
     end
 
-    dynvars = [ lag_gensyms, m.endo, lead_gensyms ]
+    dynvars = [ lag_gensyms; m.endo; lead_gensyms ]
     
     # Compute expressions for static residuals and jacobian
     for i = 1:m.n_endo

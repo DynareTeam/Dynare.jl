@@ -17,7 +17,7 @@ end
 
 compute_model_info(m)
 
-calib = [
+calib = Dict(
          :alpha => 0.36,
          :rho   => 0.95,
          :tau   => 0.025,
@@ -25,16 +25,16 @@ calib = [
          :delta => 0.025,
          :psi   => 0.0,
          :theta => 2.95
-        ]
+        )
 
-initval = [
+initval = Dict(
            :y => 1.08068253095672,
            :c => 0.80359242014163,
            :h => 0.29175631001732,
            :k => 11.08360443260358,
            :a => 0.0,
            :b => 0.0
-           ]
+           )
 
 s = steady_state(m, calib, initval)
 
@@ -42,7 +42,7 @@ print_steady_state(m, s)
 
 (gy, gu, eigs) = decision_rules(m, calib, s)
 
-println("Eigenvalues: ", eigs)
-println()
+ println("Eigenvalues: ", eigs)
+ println()
 
-print_decision_rules(m, gy, gu)
+## print_decision_rules(m, gy, gu)
