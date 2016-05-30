@@ -17,15 +17,15 @@ end
 
 compute_model_info(m)
 
-calib = [
+calib = Dict(
          :alph => 0.5,
          :gam => 0.5,
          :delt => 0.02,
          :bet => 0.05,
          :aa => 0.5
-        ]
+        )
 
-exoval = [ :x => 1.0 ]
+exoval = Dict( :x => 1.0 )
 
 initval = Dict{Symbol, Float64}()
 initval[:k] = ((calib[:delt]+calib[:bet])/(exoval[:x]*calib[:aa]*calib[:alph]))^(1/(calib[:alph]-1))
@@ -33,6 +33,8 @@ initval[:c] = calib[:aa]*initval[:k]^calib[:alph]-calib[:delt]*initval[:k]
 initval[:x1] = exoval[:x]
 
 s = steady_state(m, calib, initval, exoval)
+
+print_steady_state(m, s)
 
 # Compute a 200 periods perfect foresight simulation
 # Start and end at the steady state corresponding to x=1
@@ -46,3 +48,4 @@ exopath = ones(m.n_exo, T)
 exopath[1, 1] = 1.2
 
 perfect_foresight_simul!(m, endopath, exopath, calib)
+
