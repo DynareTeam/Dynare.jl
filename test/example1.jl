@@ -42,7 +42,7 @@ print_steady_state(m, s)
 
 (gy, gu, eigs) = decision_rules(m, calib, s)
 
- println("Eigenvalues: ", eigs)
- println()
+println("Eigenvalues: ", eigs)
+println()
 
-## print_decision_rules(m, gy, gu)
+print_decision_rules(m, gy, gu)

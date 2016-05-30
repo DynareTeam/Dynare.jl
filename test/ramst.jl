@@ -34,6 +34,8 @@ initval[:x1] = exoval[:x]
 
 s = steady_state(m, calib, initval, exoval)
 
+print_steady_state(m, s)
+
 # Compute a 200 periods perfect foresight simulation
 # Start and end at the steady state corresponding to x=1
 # There is a shock x=1.2 in t=1
@@ -46,3 +48,4 @@ exopath = ones(m.n_exo, T)
 exopath[1, 1] = 1.2
 
 perfect_foresight_simul!(m, endopath, exopath, calib)
+

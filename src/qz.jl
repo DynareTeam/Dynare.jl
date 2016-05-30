@@ -1,5 +1,6 @@
 import Base.LinAlg.BlasInt
 
+
 # Equivalent of mjdgges
 # S and T are modified in place
 function qz!(S::Matrix{Float64}, T::Matrix{Float64})
@@ -29,8 +30,14 @@ function qz!(S::Matrix{Float64}, T::Matrix{Float64})
     bwork = Array(BlasInt, n)
     sdim = Array(BlasInt, 1)
     info = Array(BlasInt, 1)
-    
-    ccall((Base.blasfunc(:dgges_), Base.liblapack_name), Void, (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{Void},
+
+    ## I changed the function name from :dgges_ to :dgges_64_
+    ## so that it runs on my machine
+    ## see Base.blasfunc(:dgges_)
+
+    ## I didn't manage to write general code that acceps Base.blasfunc(:dgges_) as an argument
+
+   ccall((:dgges_64_ , Base.liblapack_name), Void, (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{Void},
                                            Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt},
                                            Ptr{Float64}, Ptr{BlasInt}, Ptr{BlasInt},
                                            Ptr{Float64}, Ptr{Float64}, Ptr{Float64},
@@ -42,6 +49,7 @@ function qz!(S::Matrix{Float64}, T::Matrix{Float64})
           sdim, alphar, alphai, beta, vsl, &stride(vsl, 2),
           vsr, &stride(vsr, 2), work, &lwork, bwork, info)
 
+ 
     @assert info[1] == 0
 
     eigs = Array(Complex128, n)
