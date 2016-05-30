@@ -17,15 +17,15 @@ end
 
 compute_model_info(m)
 
-calib = [
+calib = Dict(
          :alph => 0.5,
          :gam => 0.5,
          :delt => 0.02,
          :bet => 0.05,
          :aa => 0.5
-        ]
+        )
 
-exoval = [ :x => 1.0 ]
+exoval = Dict( :x => 1.0 )
 
 initval = Dict{Symbol, Float64}()
 initval[:k] = ((calib[:delt]+calib[:bet])/(exoval[:x]*calib[:aa]*calib[:alph]))^(1/(calib[:alph]-1))

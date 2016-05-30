@@ -30,7 +30,7 @@ function qz!(S::Matrix{Float64}, T::Matrix{Float64})
     sdim = Array(BlasInt, 1)
     info = Array(BlasInt, 1)
     
-    ccall((:dgges_, Base.liblapack_name), Void, (Ptr{Uint8}, Ptr{Uint8}, Ptr{Uint8}, Ptr{Void},
+    ccall((Base.blasfunc(:dgges_), Base.liblapack_name), Void, (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{Void},
                                            Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt},
                                            Ptr{Float64}, Ptr{BlasInt}, Ptr{BlasInt},
                                            Ptr{Float64}, Ptr{Float64}, Ptr{Float64},
