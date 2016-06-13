@@ -19,7 +19,7 @@ module DynareOptions
 ##
 
 
-export dynare_options
+export Options, dynare_options
 
 type Options
     dynare_version::ASCIIString

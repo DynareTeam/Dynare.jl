@@ -18,8 +18,7 @@ module DynareModel
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-
-export Endo, Exo, ExoDet, Param, dynare_model
+export Model, Endo, Exo, ExoDet, Param, dynare_model
 
 abstract Atom
 

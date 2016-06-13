@@ -18,8 +18,7 @@ module DynareOutput
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-
-export dynare_output
+export Ouput, dynare_output
 
 type Output
     dynare_version::ASCIIString
@@ -28,7 +27,7 @@ type Output
 end
 
 function dynare_output()
-    return Output("",                   # dynare_version
+    return Output("",                # dynare_version
                   Array(Float64, 0), # steady_state
                   Array(Float64, 0)  # exo_steady_state
                  )
