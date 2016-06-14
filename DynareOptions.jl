@@ -18,18 +18,34 @@ module DynareOptions
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-
 export Options, dynare_options
+
+type PFMSolver
+    maxit::Int
+    periods::Int
+    tolx::Float64
+    tolf::Float64
+end
+
+function pfmsolver_set_defaults()
+    return PFMSolver(500,       # maxit (Maximum number of iterations in Newton algorithm)
+                     400,       # periods (Number of periods to return to the steady state)
+                     1e-6,      # tolx (Tolerance criterion on the paths for the endogenous variables)
+                     1e-6       # tolf (Tolerance criterion on the stacked non linear equations)
+                     )
+end
 
 type Options
     dynare_version::ASCIIString
     linear::Bool
+    pfmsolver::PFMSolver
 end
 
 function dynare_options()
-    return Options("",          # dynare_version
-                   false        # linear
-                  )
+    return Options("",                          # dynare_version
+                   false,                       # linear
+                   pfmsolver_set_defaults()     # pfmsolver
+                   )
 end
 
 end
