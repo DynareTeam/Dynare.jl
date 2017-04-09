@@ -1,3 +1,5 @@
+![](https://travis-ci.org/DynareTeam/Dynare.jl.svg?branch=master)
+
 ## Dynare for Julia
 
 This package aims at bringing to Julia some of the functionality provided by
@@ -43,7 +45,7 @@ compute_model_info(m)
 
 # Define a calibration and some starting values for the nonlinear solver
 
-calib = [
+calib = Dict(
          :alpha => 0.36,
          :rho   => 0.95,
          :tau   => 0.025,
@@ -51,18 +53,16 @@ calib = [
          :delta => 0.025,
          :psi   => 0.0,
          :theta => 2.95
-        ]
+        )
 
-initval = [
+initval = Dict(
            :y => 1.08068253095672,
            :c => 0.80359242014163,
            :h => 0.29175631001732,
            :k => 11.08360443260358,
            :a => 0.0,
-           :b => 0.0,
-           :e => 0.0,
-           :u => 0.0
-          ]
+           :b => 0.0
+           )
 
 # Compute and print the steady state for the given calibration
 
@@ -105,15 +105,15 @@ end
 
 compute_model_info(m)
 
-calib = [
+calib = Dict(
          :alph => 0.5,
          :gam => 0.5,
          :delt => 0.02,
          :bet => 0.05,
          :aa => 0.5
-        ]
+        )
 
-exoval = [ :x => 1.0 ]
+exoval = Dict( :x => 1.0 )
 
 initval = Dict{Symbol, Float64}()
 initval[:k] = ((calib[:delt]+calib[:bet])/(exoval[:x]*calib[:aa]*calib[:alph]))^(1/(calib[:alph]-1))
