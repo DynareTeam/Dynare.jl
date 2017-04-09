@@ -21,7 +21,7 @@ Dynare. It computes the steady state and first order decision rules.
 Note that the syntax for the model block has been kept as close as possible to
 the original format.
 
-```
+```julia
 using Dynare
 
 # Create a model object
@@ -88,7 +88,7 @@ Dynare. It computes the steady state and a perfect foresight simulation.
 Note that we had to introduce an endogenous variable `x1` equal to the
 exogenous variable `x`, because leads on exogenous variables are not yet supported.
 
-```
+```julia
 using Dynare
 
 m =
