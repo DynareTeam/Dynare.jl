@@ -146,8 +146,8 @@ function compute_var_categories(m::Model)
 
     # Compute the length of the 7 vectors
     for t = (:back, :fwrd, :static, :mixed, :back_mixed, :fwrd_mixed, :dynamic)
-        nt = symbol(string("n_", t))
-        zt = symbol(string("zeta_", t))
+        nt = Symbol(string("n_", t))
+        zt = Symbol(string("zeta_", t))
         setfield!(m, nt, length(getfield(m, zt)))
     end
 
