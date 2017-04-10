@@ -1,5 +1,7 @@
 import Base.LinAlg.BlasInt
-import Base.blasfunc
+import Base.LinAlg.BLAS.@blasfunc
+
+const liblapack = Base.liblapack_name
 
 # Equivalent of mjdgges
 # S and T are modified in place
@@ -32,7 +34,7 @@ import Base.blasfunc
         sdim = Array(BlasInt, 1)
         info = Array(BlasInt, 1)
 
-        ccall( ( $(blasfunc(:dgges_)), Base.liblapack_name), Void, (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{Void},
+        ccall((@blasfunc(dgges_), liblapack), Void, (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{Void},
                                                                     Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt},
                                                                     Ptr{Float64}, Ptr{BlasInt}, Ptr{BlasInt},
                                                                     Ptr{Float64}, Ptr{Float64}, Ptr{Float64},
