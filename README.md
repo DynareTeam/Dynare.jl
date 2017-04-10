@@ -1,4 +1,4 @@
-![](https://travis-ci.org/DynareTeam/Dynare.jl.svg?branch=master)
+[![Build Status](https://travis-ci.org/DynareTeam/Dynare.jl.svg?branch=master)](https://travis-ci.org/DynareTeam/Dynare.jl)
 
 ## Dynare for Julia
 
@@ -12,6 +12,8 @@ time.
 
 For the moment the package is only able to compute a model’s steady state,
 first order decision rules and perfect foresight simulations.
+
+The package is tested againt Julia 0.5.x.
 
 ## A rational expectations example
 
