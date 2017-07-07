@@ -32,7 +32,14 @@ initval[:k] = ((calib[:delt]+calib[:bet])/(exoval[:x]*calib[:aa]*calib[:alph]))^
 initval[:c] = calib[:aa]*initval[:k]^calib[:alph]-calib[:delt]*initval[:k]
 initval[:x1] = exoval[:x]
 
+# (re)Set initial condition far from the steady state.
+initval[:c] = .5*initval[:c]
+initval[:k] = .1*initval[:k]
+
+# Solve the static model for the steady state.
 s = steady_state(m, calib, initval, exoval)
+
+print_steady_state(m, s)
 
 # Compute a 200 periods perfect foresight simulation
 # Start and end at the steady state corresponding to x=1
