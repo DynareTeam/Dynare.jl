@@ -1,6 +1,7 @@
 module Dynare
 
 using NLsolve
+using Suppressor
 
 export @var, @varexo, @parameters, @model, @modfile
 
@@ -214,13 +215,13 @@ function compute_static_mf(m::Model)
     end
 
     @eval begin
-        function static_mf!(y::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fvec::Vector{Float64})
+        @suppress function static_mf!(y::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fvec::Vector{Float64})
             $(f_assigns...)
         end
     end
 
     @eval begin
-        function static_mg!(y::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fjac::Matrix{Float64})
+        @suppress function static_mg!(y::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fjac::Matrix{Float64})
             $(g_assigns...)
         end
     end
@@ -291,13 +292,13 @@ function compute_dynamic_mf(m::Model)
     end
 
     @eval begin
-        function dynamic_mf!(yy::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fvec::Vector{Float64})
+        @suppress function dynamic_mf!(yy::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fvec::Vector{Float64})
             $(f_assigns...)
         end
     end
 
     @eval begin
-        function dynamic_mg!(yy::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fjac::Matrix{Float64})
+        @suppress function dynamic_mg!(yy::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fjac::Matrix{Float64})
             $(g_assigns...)
         end
     end
