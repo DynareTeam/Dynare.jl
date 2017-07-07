@@ -20,8 +20,8 @@ function perfect_foresight_simul!(m::Model, endopath::Matrix{Float64}, exopath::
 
     Y = vec(endopath)
 
-    d1 = Array(Float64, m.n_endo)
-    jacob = Array(Float64, m.n_endo, m.n_back_mixed + m.n_endo + m.n_fwrd_mixed + m.n_exo)
+    d1 = Array{Float64}(m.n_endo)
+    jacob = Array{Float64}(m.n_endo, m.n_back_mixed + m.n_endo + m.n_fwrd_mixed + m.n_exo)
     
     for iter = 1:maxit
 
@@ -50,7 +50,7 @@ function perfect_foresight_simul!(m::Model, endopath::Matrix{Float64}, exopath::
             i_cols += m.n_endo
         end
 
-        err = maximum(abs(res))
+        err = maximum(abs, res)
 
         if err < tolerance
             endopath = reshape(Y, m.n_endo, T+2)

@@ -4,7 +4,7 @@ using NLsolve
 
 export @var, @varexo, @parameters, @model, @modfile
 
-typealias MathExpr Union{Expr,Symbol,Number}
+const MathExpr = Union{Expr,Symbol,Number}
 
 type Model
     endo::Vector{Symbol}
@@ -39,14 +39,14 @@ type Model
     dynamic_mg!::Function # Dynamic model Jacobian (yy,x,p,jacobian)
 end
 
-Model() = Model(Array(Symbol, 0), Array(Symbol, 0), Array(Symbol, 0), Array(MathExpr, 0),
+Model() = Model(Array{Symbol}(0), Array{Symbol}(0), Array{Symbol}(0), Array{MathExpr}(0),
                 0, 0, 0,
-                Array(Int, 0), Array(Int, 0),
-                Array(Int, 0), Array(Int, 0),
-                Array(Int, 0), Array(Int, 0),
-                Array(Int, 0),
-                Array(Int, 0), Array(Int, 0),
-                Array(Int, 0), Array(Int, 0),
+                Array{Int}(0), Array{Int}(0),
+                Array{Int}(0), Array{Int}(0),
+                Array{Int}(0), Array{Int}(0),
+                Array{Int}(0),
+                Array{Int}(0), Array{Int}(0),
+                Array{Int}(0), Array{Int}(0),
                 0, 0, 0, 0, 0, 0, 0,
                 (y::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fvec::Vector{Float64}) -> nothing,
                 (y::Vector{Float64}, x::Vector{Float64}, p::Vector{Float64}, fjac::Matrix{Float64}) -> nothing,
@@ -174,8 +174,8 @@ import Calculus.differentiate
 include("symbolic.jl")
 
 function compute_static_mf(m::Model)
-    reqs = Array(MathExpr, m.n_endo)
-    jacob = Array(MathExpr, m.n_endo, m.n_endo)
+    reqs = Array{MathExpr}(m.n_endo)
+    jacob = Array{MathExpr}(m.n_endo, m.n_endo)
 
     # Compute expressions for static residuals and jacobian
     for i = 1:m.n_endo
@@ -204,8 +204,8 @@ function compute_static_mf(m::Model)
     end
 
     # Construct static model functions
-    f_assigns = Array(Expr, 0)
-    g_assigns = Array(Expr, 0)
+    f_assigns = Array{Expr}(0)
+    g_assigns = Array{Expr}(0)
     for i = 1:m.n_endo
         push!(f_assigns, :(fvec[$i] = $(reqs[i])))
         for j = 1:m.n_endo
@@ -232,17 +232,17 @@ end
 function compute_dynamic_mf(m::Model)
     ndyn = m.n_back_mixed + m.n_endo + m.n_fwrd_mixed
     njcols = ndyn + m.n_exo
-    reqs = Array(MathExpr, m.n_endo)
-    jacob = Array(MathExpr, m.n_endo, njcols)
+    reqs = Array{MathExpr}(m.n_endo)
+    jacob = Array{MathExpr}(m.n_endo, njcols)
 
     # Create gensyms for lagged and leaded variables
-    lag_gensyms = Array(Symbol, m.n_back_mixed)
+    lag_gensyms = Array{Symbol}(m.n_back_mixed)
     lag_dict = Dict{Symbol,Symbol}()
     for i = 1:m.n_back_mixed
         lag_gensyms[i] = gensym()
         lag_dict[m.endo[m.zeta_back_mixed[i]]] = lag_gensyms[i]
     end
-    lead_gensyms = Array(Symbol, m.n_fwrd_mixed)
+    lead_gensyms = Array{Symbol}(m.n_fwrd_mixed)
     lead_dict = Dict{Symbol,Symbol}()
     for i = 1:m.n_fwrd_mixed
         lead_gensyms[i] = gensym()
@@ -281,8 +281,8 @@ function compute_dynamic_mf(m::Model)
     end
     
     # Construct dynamic model functions
-    f_assigns = Array(Expr, 0)
-    g_assigns = Array(Expr, 0)
+    f_assigns = Array{Expr}(0)
+    g_assigns = Array{Expr}(0)
     for i = 1:m.n_endo
         push!(f_assigns, :(fvec[$i] = $(reqs[i])))
         for j = 1:njcols
@@ -320,7 +320,7 @@ function compute_model_info(m::Model)
 end
 
 function calib2vec(m::Model, calib::Dict{Symbol, Float64})
-    p = Array(Float64, m.n_param)
+    p = Array{Float64}(m.n_param)
     for i in 1:m.n_param
         p[i] = calib[m.param[i]]
     end
@@ -328,7 +328,7 @@ function calib2vec(m::Model, calib::Dict{Symbol, Float64})
 end
 
 function initval2vec(m::Model, initval::Dict{Symbol, Float64})
-    y = Array(Float64, m.n_endo)
+    y = Array{Float64}(m.n_endo)
     for i in 1:m.n_endo
         y[i] = initval[m.endo[i]]
     end
@@ -336,7 +336,7 @@ function initval2vec(m::Model, initval::Dict{Symbol, Float64})
 end
 
 function exoval2vec(m::Model, exoval::Dict{Symbol, Float64})
-    x = Array(Float64, m.n_exo)
+    x = Array{Float64}(m.n_exo)
     for i in 1:m.n_exo
         x[i] = exoval[m.exo[i]]
     end
@@ -349,7 +349,7 @@ function steady_state(m::Model, calib::Dict{Symbol, Float64}, initval::Dict{Symb
     ev = exoval2vec(m, exoval)
     mf!(y::Vector{Float64}, fvec::Vector{Float64}) = m.static_mf!(y, ev, p, fvec)
     mg!(y::Vector{Float64}, fjac::Matrix{Float64}) = m.static_mg!(y, ev, p, fjac)
-    r = nlsolve(mf!, mg!, iv, show_trace = true)
+    r = nlsolve(mf!, mg!, iv)
     @assert converged(r)
     return(r.zero)
 end

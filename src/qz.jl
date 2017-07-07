@@ -23,16 +23,16 @@ const liblapack = Base.liblapack_name
         @assert stride(S, 1) == 1
         @assert stride(T, 1) == 1
         
-        alphar = Array(Float64, n)
-        alphai = Array(Float64, n)
-        beta = Array(Float64, n)
+        alphar = Array{Float64}(n)
+        alphai = Array{Float64}(n)
+        beta = Array{Float64}(n)
         lwork = 16*n+16 # Same heuristic choice than mjdgges
-        work = Array(Float64, lwork)
-        vsl = Array(Float64, n, n)
-        vsr = Array(Float64, n, n)
-        bwork = Array(BlasInt, n)
-        sdim = Array(BlasInt, 1)
-        info = Array(BlasInt, 1)
+        work = Array{Float64}(lwork)
+        vsl = Array{Float64}(n, n)
+        vsr = Array{Float64}(n, n)
+        bwork = Array{BlasInt}(n)
+        sdim = Array{BlasInt}(1)
+        info = Array{BlasInt}(1)
 
         ccall((@blasfunc(dgges_), liblapack), Void, (Ptr{UInt8}, Ptr{UInt8}, Ptr{UInt8}, Ptr{Void},
                                                                     Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt},
@@ -48,7 +48,7 @@ const liblapack = Base.liblapack_name
         
         @assert info[1] == 0
         
-        eigs = Array(Complex128, n)
+        eigs = Array{Complex128}(n)
         for i = 1:n
             eigs[i] = alphar[i]/beta[i] + (alphai[i] == 0 && beta[i] == 0 ? 0.0 : alphai[i]/beta[i])*im
         end

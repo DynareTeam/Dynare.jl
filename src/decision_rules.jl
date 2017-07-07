@@ -4,9 +4,9 @@ function decision_rules(m::Model, calib::Dict{Symbol, Float64}, steady_state::Ve
     yy = [ steady_state[m.zeta_back_mixed]; steady_state; steady_state[m.zeta_fwrd_mixed] ]
     x = zeros(m.n_exo)
     p = calib2vec(m, calib)
-    r = Array(Float64, m.n_endo)
+    r = Array{Float64}(m.n_endo)
     m.dynamic_mf!(yy, x, p, r)
-    jacob = Array(Float64, m.n_endo, n_dynvars + m.n_exo)
+    jacob = Array{Float64}(m.n_endo, n_dynvars + m.n_exo)
     m.dynamic_mg!(yy, x, p, jacob)
 
     A = jacob[:, 1:n_dynvars]
@@ -44,7 +44,7 @@ function decision_rules(m::Model, calib::Dict{Symbol, Float64}, steady_state::Ve
     S11 = E[1:m.n_back_mixed, 1:m.n_back_mixed]
     gyminus = Z11p*(T11\S11)/Z11p
 
-    gy = Array(Float64, m.n_endo, m.n_back_mixed)
+    gy = Array{Float64}(m.n_endo, m.n_back_mixed)
     gy[m.zeta_back_mixed, :] = gyminus
     gy[m.zeta_fwrd_mixed, :] = gyplus
     
