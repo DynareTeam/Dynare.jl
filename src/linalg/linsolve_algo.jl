@@ -8,7 +8,7 @@ import Base.LinAlg.LAPACK: liblapack, chklapackerror
 export LinSolveWS, linsolve_core!
 
 struct LinSolveWS
-    ipiv::Array{BlasInt}
+    ipiv::Vector{BlasInt}
 
     function LinSolveWS(n)
         ipiv = Vector{BlasInt}(n)

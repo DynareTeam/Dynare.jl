@@ -8,8 +8,8 @@ import Base.LinAlg.LAPACK: liblapack, chklapackerror
 export QrWS, dgeqrf_core!, dormrqf_core!
 
 type QrWS
-    tau::Array{Float64,1}
-    work::Array{Float64,1}
+    tau::Vector{Float64}
+    work::Vector{Float64}
     lwork::Ref{BlasInt}
     info::Ref{BlasInt}
 
@@ -18,8 +18,8 @@ type QrWS
         m = Ref{BlasInt}(mm)
         n = Ref{BlasInt}(nn)
         RldA = Ref{BlasInt}(max(1,stride(A,2)))
-        tau = Array(Float64,min(nn,mm))
-        work = Array(Float64,1)
+        tau = Vector{Float64}(min(nn,mm))
+        work = Vector{Float64}(1)
         lwork = Ref{BlasInt}(-1)
         info = Ref{BlasInt}(0)
         ccall((@blasfunc(dgeqrf_), liblapack), Void,
