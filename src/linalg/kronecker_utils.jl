@@ -10,7 +10,7 @@ Performs a*(b ⊗ b ⊗ ... ⊗ b). The solution is returned in matrix c. order 
 We use vec(a*(b ⊗ b ⊗ ... ⊗ b)) = (b' ⊗ b' ⊗ ... ⊗ b' \otimes I)vec(a)
 
 """
-function a_mul_kron_b!(c::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix, order::Int64, work::AbstractVector)
+function a_mul_kron_b!(c::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix, order::Int64, work1::AbstractVector, work2::AbstractVector)
     ma, na = size(a)
     mb, nb = size(b)
     mc, nc = size(c)
@@ -19,18 +19,25 @@ function a_mul_kron_b!(c::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix, 
     na == mborder || throw(DimensionMismatch("The number of columns of a, $na, doesn't match the number of rows of b, $mb, times order = $order"))
     mc == ma || throw(DimensionMismatch("The number of rows of c, $mc, doesn't match the number of rows of a, $ma"))
     nc == nborder || throw(DimensionMismatch("The number of columns of c, $nc, doesn't match the number of columns of b, $nb, times order = $order"))
- 
-    avec = vec(a)
+
+    # copy input
+    copy!(work1,a)
+    n1 = ma*na
+    n2 = Int(n1*nb/mb)
+    v1 = view(work1,1:n1)
+    v2 = view(work2,1:n2)
     for q=0:order-1
-        vavec = view(avec,1:ma*mb^(order-q)*nb^q)
-        vwork = view(work,1:ma*mb^(order-q-1)*nb^(q+1))
-        kron_mul_elem_t!(vwork,b,vavec,mb^(order-q-1),nb^q*ma)
+        kron_mul_elem_t!(v2,b,v1,mb^(order-q-1),nb^q*ma)
         if q < order - 1
-            copy!(avec,vwork)
+            # update dimension
+            n2 = Int(n2*nb/mb)
+            # swap and resize work vectors
+            v1parent = v1.parent
+            v1 = v2
+            v2 = view(v1parent,1:n2)
         end
     end
-    vwork = view(work,1:ma*nborder)
-    copy!(c,vwork)
+    copy!(c,v2)
 end
     
 function a_mul_kron_b!(c::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix, order::Int64)
