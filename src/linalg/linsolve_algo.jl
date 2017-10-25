@@ -8,11 +8,13 @@ import Base.LinAlg.LAPACK: liblapack, chklapackerror
 export LinSolveWS, linsolve_core!
 
 struct LinSolveWS
+    lu::Matrix{Float64}
     ipiv::Vector{BlasInt}
 
     function LinSolveWS(n)
+        lu = Matrix{Float64}(n,n)
         ipiv = Vector{BlasInt}(n)
-        new(ipiv)
+        new(lu,ipiv)
     end
 end
 
@@ -25,11 +27,11 @@ function linsolve_core!(ws::LinSolveWS,trans::Ref{UInt8},a::StridedMatrix{Float6
     ldb = Ref{BlasInt}(max(1,stride(b,2)))
     info = Ref{BlasInt}(0)
 
-    lu!(a,ws.ipiv)
+    lu!(ws.lu,a,ws.ipiv)
     ccall((@blasfunc(dgetrs_), liblapack), Void,
           (Ref{UInt8},Ref{BlasInt},Ref{BlasInt},Ptr{Float64},Ref{BlasInt},
            Ptr{BlasInt},Ptr{Float64},Ref{BlasInt},Ref{BlasInt}),
-          trans,n,nhrs,a,lda,ws.ipiv,b,ldb,info)
+          trans,n,nhrs,ws.lu,lda,ws.ipiv,b,ldb,info)
     if info[] != 0
         println("dgetrs ",info[])
         chklapackerror(info[])
@@ -45,12 +47,12 @@ function linsolve_core!(ws::LinSolveWS,trans::Ref{UInt8},a::StridedMatrix{Float6
     ldc = Ref{BlasInt}(max(1,stride(c,2)))
     info = Ref{BlasInt}(0)
 
-    lu!(a,ws.ipiv)
+    lu!(ws.lu,a,ws.ipiv)
     nhrs = Ref{BlasInt}(size(b,2))
     ccall((@blasfunc(dgetrs_), liblapack), Void,
           (Ref{UInt8},Ref{BlasInt},Ref{BlasInt},Ptr{Float64},Ref{BlasInt},
            Ptr{BlasInt},Ptr{Float64},Ref{BlasInt},Ref{BlasInt}),
-          trans,n,nhrs,a,lda,ws.ipiv,b,ldb,info)
+          trans,n,nhrs,ws.lu,lda,ws.ipiv,b,ldb,info)
     if info[] != 0
         println("dgetrs ",info[])
         chklapackerror(info[])
@@ -59,7 +61,7 @@ function linsolve_core!(ws::LinSolveWS,trans::Ref{UInt8},a::StridedMatrix{Float6
     ccall((@blasfunc(dgetrs_), liblapack), Void,
           (Ref{UInt8},Ref{BlasInt},Ref{BlasInt},Ptr{Float64},Ref{BlasInt},
            Ptr{BlasInt},Ptr{Float64},Ref{BlasInt},Ref{BlasInt}),
-          trans,n,nhrs,a,lda,ws.ipiv,c,ldc,info)
+          trans,n,nhrs,ws.lu,lda,ws.ipiv,c,ldc,info)
     if info[] != 0
         println("dgetrs ",info[])
         chklapackerror(info[])
@@ -77,11 +79,11 @@ function linsolve_core!(ws::LinSolveWS,trans::Ref{UInt8},a::StridedMatrix{Float6
     ldd = Ref{BlasInt}(max(1,stride(d,2)))
     info = Ref{BlasInt}(0)
 
-    lu!(a,ws.ipiv)
+    lu!(ws.lu,a,ws.ipiv)
     ccall((@blasfunc(dgetrs_), liblapack), Void,
           (Ref{UInt8},Ref{BlasInt},Ref{BlasInt},Ptr{Float64},Ref{BlasInt},
            Ptr{BlasInt},Ptr{Float64},Ref{BlasInt},Ref{BlasInt}),
-          trans,n,nhrs,a,lda,ws.ipiv,b,ldb,info)
+          trans,n,nhrs,ws.lu,lda,ws.ipiv,b,ldb,info)
     if info[] != 0
         println("dgetrs ",info[])
         chklapackerror(info[])
@@ -89,7 +91,7 @@ function linsolve_core!(ws::LinSolveWS,trans::Ref{UInt8},a::StridedMatrix{Float6
     ccall((@blasfunc(dgetrs_), liblapack), Void,
           (Ref{UInt8},Ref{BlasInt},Ref{BlasInt},Ptr{Float64},Ref{BlasInt},
            Ptr{BlasInt},Ptr{Float64},Ref{BlasInt},Ref{BlasInt}),
-          trans,n,nhrs,a,lda,ws.ipiv,c,ldc,info)
+          trans,n,nhrs,ws.lu,lda,ws.ipiv,c,ldc,info)
     if info[] != 0
         println("dgetrs ",info[])
         chklapackerror(info[])
@@ -97,14 +99,15 @@ function linsolve_core!(ws::LinSolveWS,trans::Ref{UInt8},a::StridedMatrix{Float6
     ccall((@blasfunc(dgetrs_), liblapack), Void,
           (Ref{UInt8},Ref{BlasInt},Ref{BlasInt},Ptr{Float64},Ref{BlasInt},
            Ptr{BlasInt},Ptr{Float64},Ref{BlasInt},Ref{BlasInt}),
-          trans,n,nhrs,a,lda,ws.ipiv,d,ldd,info)
+          trans,n,nhrs,ws.lu,lda,ws.ipiv,d,ldd,info)
     if info[] != 0
         println("dgetrs ",info[])
         chklapackerror(info[])
     end
 end
 
-function lu!(a,ipiv)
+function lu!(lu,a,ipiv)
+    copy!(lu,a)
     mm,nn = size(a)
     m = Ref{BlasInt}(mm)
     n = Ref{BlasInt}(nn)
@@ -113,7 +116,7 @@ function lu!(a,ipiv)
     ccall((@blasfunc(dgetrf_), liblapack), Void,
           (Ref{BlasInt},Ref{BlasInt},Ptr{Float64},Ref{BlasInt},
            Ptr{BlasInt},Ref{BlasInt}),
-          m,n,a,lda,ipiv,info)
+          m,n,lu,lda,ipiv,info)
     if info[] != 0
         println("dgetrf ",info[])
         chklapackerror(info[])

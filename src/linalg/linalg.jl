@@ -1,4 +1,4 @@
-module LinAlg
+module DynLinAlg
 
 # Kronecker operations
 include("kronecker_utils.jl")
@@ -14,7 +14,6 @@ include("quasi_upper_triangular.jl")
 
 # Schur decompositions
 include("schur.jl")
-export DgeesWS, dgees!, DggesWS, dgges!
 
 end
 

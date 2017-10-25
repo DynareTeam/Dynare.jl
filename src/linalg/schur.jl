@@ -9,6 +9,8 @@ import Base.LinAlg: BlasInt, BlasFloat, checksquare, chkstride1
 import Base.LinAlg.BLAS: @blasfunc, libblas
 import Base.LinAlg.LAPACK: liblapack, chklapackerror
 
+export DgeesWS, dgees!, DggesWS, dgges!
+
 const criterium = 1+1e-6
 
 function mycompare{T}(wr_::Ptr{T}, wi_::Ptr{T})

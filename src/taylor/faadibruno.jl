@@ -4,7 +4,7 @@ import Base: start, next, done
 include("../linalg/kronecker_utils.jl")
 import .Kronecker: a_mul_kron_b!
 
-export FaaDiBrunoWs, faa_di_bruno
+export FaaDiBrunoWs, faa_di_bruno!, partial_faa_di_bruno!
 
 ttuple = Tuple{ Array{Int,1}, Array{Array{Int,1},1} }
 tatuple = Array{ttuple,1}
@@ -58,7 +58,7 @@ function setup_recipees!(recipees::trecipees,order::Int)
     end
 end
 
-function faa_di_bruno!(dfg::Matrix{Float64},f::Array{Matrix{Float64}},g::Array{Matrix{Float64}},order::Int,ws::FaaDiBrunoWs)
+function faa_di_bruno!(dfg::Matrix{Float64},f::Array{Matrix{Float64},1},g::Array{Matrix{Float64}},order::Int,ws::FaaDiBrunoWs)
     m = size(f[1],1)
     n = size(g[1],2)
     work1 = reshape(view(ws.work1,1:m*n^order),m,n^order)
@@ -82,6 +82,25 @@ function faa_di_bruno!(dfg::Matrix{Float64},f::Array{Matrix{Float64}},g::Array{M
                 apply_recipees!(dfg,ws.recipees[order][i],f[i],g,order,ws)
                 println(dfg[1])
             end
+        end
+    end
+end
+
+"""
+    function partial_faa_di_bruno!(dfg,f,g,order,ws)
+computes the derivatives of f(g()) at order "order"
+but without the term involving order'th derivative of g
+"""
+function partial_faa_di_bruno!(dfg::Matrix{Float64},f::Array{Matrix{Float64},1},g::Array{Matrix{Float64}},order::Int,ws::FaaDiBrunoWs)
+    m = size(f[1],1)
+    n = size(g[1],2)
+    if order == 1
+        throw(ArgumentError("Can't run partial_faa_di_bruno() for order == 1"))
+    elseif order == 2
+        a_mul_kron_b!(dfg,f[2],g[1],2,ws.work1,ws.work2)
+    else
+        for i = 1:order
+            apply_recipees!(dfg,ws.recipees[order][i],f[i],g,order,ws)
         end
     end
 end

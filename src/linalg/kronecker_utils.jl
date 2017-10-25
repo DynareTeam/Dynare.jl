@@ -1,6 +1,8 @@
 module Kronecker
 
+using Base.Test
 import Base.convert
+export a_mul_kron_b!, a_mul_b_kron_c!, kron_at_kron_b_mul_c!, a_mul_b_kron_c_d!
 
 """
     a_mul_kron_b!(c::AbstractVector, a::AbstractVecOrMat, b::AbstractMatrix, order::Int64)
@@ -94,24 +96,23 @@ function a_mul_b_kron_c!(d::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix
 end
 
 """
-    function kron_at_kron_b_mul_c!(a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector, w::AbstractVector)
-computes d = (a^T ⊗ a^T ⊗ ... ⊗ a^T ⊗ b)c
+    function kron_at_kron_b_mul_c!(a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector, work::AbstractVector)
+updates c by (a^T ⊗ a^T ⊗ ... ⊗ a^T ⊗ b)c
 """ 
-function kron_at_kron_b_mul_c!(d::AbstractVector, a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector)
+function kron_at_kron_b_mul_c!(a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector, work::AbstractVector)
+    copy!(work,c)
     ma,na = size(a)
     mb,nb = size(b)
     maorder = ma^order
     naorder = na^order
-    length(d) == maorder*nb  || throw(DimensionMismatch("The dimension of the vector, $(length(b)) doesn't correspond to order, ($p, $q)  and the dimension of the matrices a, $(size(a)), and b, $(size(b))"))
-    d1 = convert(Matrix{Float64},reshape(d,nb,naorder))
+    length(work) == maorder*nb  || throw(DimensionMismatch("The dimension of vector , $(length(b)) doesn't correspond to order, ($p, $q)  and the dimension of the matrices a, $(size(a)), and b, $(size(b))"))
+    work1 = convert(Matrix{Float64},reshape(work,nb,naorder))
     c1 = convert(Matrix{Float64},reshape(c,nb,maorder))
-    A_mul_B!(d1,b,c1)
-    copy!(c1,d1)
+    A_mul_B!(work1,b,c1)
+    copy!(c1,work1)
     for q = 0:order-1
-        kron_mul_elem_t!(d,a,c,mb^(order-q-1),nb^q*nb)
-        if q < order - 1
-            copy!(c,d)
-        end
+        kron_mul_elem_t!(work,a,c,mb^(order-q-1),nb^q*nb)
+        copy!(c,work)
     end
 end
 
@@ -152,6 +153,39 @@ function a_mul_kron_b!(c::AbstractMatrix, a::AbstractMatrix, b::AbstractVector,w
     end
 end
     
+"""
+    a_mul_b_kron_c_d!(d::AbstractVecOrMat, a::AbstractVecOrMat, b::AbstractMatrix, c::AbstractMatrix, order::Int64)
+
+Performs a*b*(c ⊗ d ⊗ ... ⊗ d). The solution is returned in matrix or vector e order indicates the number of occurences of d. c and d must be square matrices
+
+We use vec(a*b*(c ⊗ d ⊗ ... ⊗ d)) = (c' ⊗ d' ⊗ ... ⊗ d' ⊗ a)vec(b)
+
+"""
+function a_mul_b_kron_c_d!(e::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix, c::AbstractMatrix, d::AbstractMatrix, order::Int64, work1::AbstractVector, work2::AbstractVector)
+
+    ma, na = size(a)
+    mb, nb = size(b)
+    mc, nc = size(c)
+    md, nd = size(d)
+    me, ne = size(e)
+    na == mb || throw(DimensionMismatch("The number of columns of a, $(size(a,2)), doesn't match the number of rows of b, $(size(b,1))"))
+    nb == mc*md^order || throw(DimensionMismatch("The number of columns of b, $(size(b,2)), doesn't match the number of rows of c, $(size(c,1)), times order, $order"))
+    (ma == me && nc*nd^order == ne) || throw(DimensionMismatch("Dimension mismatch for e: $(size(e)) while ($ma, $(nc*nd^order)) was expected"))
+    v1 = reshape(view(work1,1:ma*nb),ma,nb)
+    A_mul_B!(v1,a,b)
+    copy!(work2,work1)
+    vw2 = vec(work2)
+    for q=0:order-1
+        v2 = view(vw2,1:ma*mc*nd^(order-q)*nd^q)
+        v1 = view(work1,1:ma*mc*md^(order-q)*nd^q)
+        kron_mul_elem_t!(v2,d,v1,mc*md^(order-q-1),nd^q*ma)
+        copy!(work1,v2)
+    end
+    v2 = view(work2,1:ma*nc*nd^order)
+    v1 = view(work1,1:ma*mc*nd^order)
+    kron_mul_elem_t!(v2,c,v1,1,nd^order*ma)
+    copy!(e,v2)
+end
 
 convert(::Type{Array{Float64, 2}}, x::Base.ReshapedArray{Float64,2,SubArray{Float64,1,Array{Float64,1},Tuple{UnitRange{Int64}},true},Tuple{}}) = unsafe_wrap(Array,pointer(x.parent.parent,x.parent.indexes[1][1]),x.dims)
 
@@ -219,7 +253,7 @@ function kron_mul_elem_t!(c::AbstractVector, a::AbstractMatrix, b::AbstractVecto
             b = convert(Array{Float64,2},reshape(b,m,p))
             c = convert(Array{Float64,2},reshape(c,n,p))
             At_mul_B!(c,a,b)
-        elseif p == 0
+        elseif p == 1
             # (a' ⊗ I_q)*b = (b'*(a ⊗ I_q))' = vec(reshape(b,q,m)*a)
             b = convert(Array{Float64,2},reshape(b,q,m))
             c = convert(Array{Float64,2},reshape(c,q,n))

@@ -11,7 +11,7 @@ import Base.LinAlg.BlasInt
 import Base.LinAlg.BLAS.@blasfunc
 import Base.LinAlg.BLAS.libblas
 
-export QuasiUpperTriangular
+export QuasiUpperTriangular, I_plus_rA_ldiv_B!, I_plus_rA_plus_sB_ldiv_C!
 
 immutable QuasiUpperTriangular{T<:Real,S<:AbstractMatrix} <: AbstractMatrix{T}
     data::S
