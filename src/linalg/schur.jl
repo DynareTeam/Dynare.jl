@@ -88,7 +88,12 @@ function DgeesWS(A::StridedMatrix{Float64})
     DgeesWS(jobvs, A, sdim, wr, wi, ldvs, vs, work, lwork, bwork, eigen_values, info)
 
 end
-    
+
+function DgeesWS(n::Int64)
+    A = zeros(n,n)
+    DgeesWS(A)
+end
+
 function dgees!(ws::DgeesWS,A::StridedMatrix{Float64})
     n = Ref{BlasInt}(size(A,1))
     RldA = Ref{BlasInt}(max(1,stride(A,2)))
