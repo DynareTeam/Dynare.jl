@@ -73,26 +73,23 @@ Performs a*B*(c ⊗ c ⊗ ... ⊗ c). The solution is returned in matrix or vect
 We use vec(a*b*(c ⊗ c ⊗ ... ⊗ c)) = (c' ⊗ c' ⊗ ... ⊗ c' ⊗ a)vec(b)
 
 """
-function a_mul_b_kron_c!(d::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix, c::AbstractMatrix, order::Int64)
+function a_mul_b_kron_c!(d::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix, c::AbstractMatrix, order::Int64,work1::AbstractVector,work2::AbstractVector)
     ma, na = size(a)
     mb, nb = size(b)
     mc, nc = size(c)
     md, nd = size(d)
-    ma == na || throw(DimensionMismatch("a must be a square matrix"))
-    mc == nc || throw(DimensionMismatch("c must be a square matrix"))
     na == mb || throw(DimensionMismatch("The number of columns of a, $(size(a,2)), doesn't match the number of rows of b, $(size(b,1))"))
     nb == mc^order || throw(DimensionMismatch("The number of columns of b, $(size(b,2)), doesn't match the number of rows of c, $(size(c,1)), times order, $order"))
     (ma == md && nc^order == nd) || throw(DimensionMismatch("Dimension mismatch for D: $(size(d)) while ($ma, $(nc^order)) was expected"))
-    A_mul_B!(d,a,b)
-    copy!(b,d)
-    bvec = vec(b)
-    dvec = vec(d)
+    A_mul_B!(reshape(view(work1,1:ma*nb),ma,nb),a,b)
     for q=0:order-1
-        kron_mul_elem_t!(dvec,c,bvec,mc^(order-q-1),nc^q*ma)
+        kron_mul_elem_t!(work2,c,work1,mc^(order-q-1),nc^q*ma)
         if q < order - 1
-            copy!(bvec,dvec)
+            copy!(work1,work2)
         end
     end
+    copy!(d,work2)
+    @test a*b*kron(c,c) ≈ reshape(d,na,mc*mc)
 end
 
 """
@@ -169,21 +166,25 @@ function a_mul_b_kron_c_d!(e::AbstractMatrix, a::AbstractMatrix, b::AbstractMatr
     md, nd = size(d)
     me, ne = size(e)
     na == mb || throw(DimensionMismatch("The number of columns of a, $(size(a,2)), doesn't match the number of rows of b, $(size(b,1))"))
-    nb == mc*md^order || throw(DimensionMismatch("The number of columns of b, $(size(b,2)), doesn't match the number of rows of c, $(size(c,1)), times order, $order"))
-    (ma == me && nc*nd^order == ne) || throw(DimensionMismatch("Dimension mismatch for e: $(size(e)) while ($ma, $(nc*nd^order)) was expected"))
+    nb == mc*md^(order-1) || throw(DimensionMismatch("The number of columns of b, $(size(b,2)), doesn't match the number of rows of c, $(size(c,1)), and d, $(size(d,1)) for order, $order"))
+    (ma == me && nc*nd^(order-1) == ne) || throw(DimensionMismatch("Dimension mismatch for e: $(size(e)) while ($ma, $(nc*nd^(order-1))) was expected"))
     v1 = reshape(view(work1,1:ma*nb),ma,nb)
     A_mul_B!(v1,a,b)
     copy!(work2,work1)
     vw2 = vec(work2)
-    for q=0:order-1
-        v2 = view(vw2,1:ma*mc*nd^(order-q)*nd^q)
-        v1 = view(work1,1:ma*mc*md^(order-q)*nd^q)
-        kron_mul_elem_t!(v2,d,v1,mc*md^(order-q-1),nd^q*ma)
+    p = mc*md^(order - 2)
+    q = ma
+    for i = 0:order - 2
+        v2 = view(vw2,1:p*q*nd)
+        v1 = view(work1,1:p*q*md)
+        kron_mul_elem_t!(v2,d,v1,p,q)
         copy!(work1,v2)
+        p = Int(p/md)
+        q *= nd
     end
-    v2 = view(work2,1:ma*nc*nd^order)
-    v1 = view(work1,1:ma*mc*nd^order)
-    kron_mul_elem_t!(v2,c,v1,1,nd^order*ma)
+    v2 = view(work2,1:q*nc)
+    v1 = view(work1,1:q*mc)
+    kron_mul_elem_t!(v2,c,v1,1,q)
     copy!(e,v2)
 end
 
