@@ -1,11 +1,11 @@
 module KOrder
 
 using Base.Test
-using DynLinAlg.Kronecker
-using DynLinAlg.linsolve_algo
+using ...DynLinAlg.Kronecker
+using ...DynLinAlg.linsolve_algo
 import Base.LinAlg.BLAS: gemm!
-import GeneralizedSylvester: EyePlusAtKronBWS, generalized_sylvester_solver!
-import FaaDiBruno: partial_faa_di_bruno!, FaaDiBrunoWs
+import ..GeneralizedSylvester: EyePlusAtKronBWS, generalized_sylvester_solver!
+import ...FaaDiBruno: partial_faa_di_bruno!, FaaDiBrunoWs
 export make_gg!, make_hh!, k_order_solution!, KOrderWs
 
 struct KOrderWs
@@ -23,7 +23,10 @@ struct KOrderWs
     hh::Vector{Matrix{Float64}}
     rhs::Matrix{Float64}
     rhs1::Matrix{Float64}
+    gykf::Matrix{Float64}
+    gs_su::Matrix{Float64}
     a::Matrix{Float64}
+    b::Matrix{Float64}
     work1::Vector{Float64}
     work2::Vector{Float64}
     faa_di_bruno_ws_1::FaaDiBrunoWs
@@ -38,11 +41,14 @@ struct KOrderWs
         linsolve_ws_1 = LinSolveWS(nvar)
         rhs = zeros(nvar,(nstate+2*nshock+1)^order)
         rhs1 = zeros(nvar, max(nvar^order,nshock*(nstate+nshock)^(order-1)))
+        gykf = zeros(nfwrd,nstate^order)
+        gs_su = Array{Float64}(nstate,nstate+nshock)
         a = zeros(nvar,nvar)
-        work1 = zeros(nvar*max(nstate^order,nshock*(nstate + nshock)^(order-1)))
+        b = zeros(nvar,nvar)
+        work1 = zeros(nvar*(nstate + nshock + 1)^order)
         work2 = similar(work1)
         new(nvar,nfwrd,nstate,ncur,nshock,fwrd_index,state_index,cur_index,state_range,gfwrd,gg,hh,
-            rhs,rhs1,a,work1,work2,faa_di_bruno_ws_1,faa_di_bruno_ws_2,linsolve_ws_1)
+            rhs,rhs1,gykf,gs_su,a,b,work1,work2,faa_di_bruno_ws_1,faa_di_bruno_ws_2,linsolve_ws_1)
     end
 end
 
@@ -56,7 +62,7 @@ with respect to [y, u, σ, ϵ]
 function make_gg!(gg,g,order,ws)
     ngg1 = ws.nstate + 2*ws.nshock + 1
     mgg1 = ws.nstate + ws.nshock + 1
-    @assert size(gg[order]) == (mgg1, ngg1^order) 
+    @assert size(gg[order]) == (mgg1, ngg1^order)
     @assert size(g[order],2) == (ws.nstate + ws.nshock + 1)^order
     @assert ws.state_range.stop <= size(g[order],1)
     if order == 1
@@ -94,7 +100,7 @@ function  make_hh!(hh, g, gg, order, ws)
         end
     else
         # derivatives of g() for forward looking variables
-        copy!(ws.gfwrd[order],g[order][ws.fwrd_index,:])
+        copy!(ws.gfwrd[order],view(g[order],ws.fwrd_index,:))
         # derivatives for g(g(y,u,σ),ϵ,σ)
         vh1 = view(hh[order],1:ws.nfwrd,:)
         # partial_faa_di_bruno needs Matrix argument! TO BE FIXED
@@ -188,14 +194,41 @@ function store_results_1!(result,ws)
     end
 end
 
+"""
+    function make_rhs2!(ws::KOrderWs,f,g,order)
+computes g_su and g_uu
+It solves
+    (f_+*g_y + f_0)X = -(D + f_+*g_yy*(gu ⊗ [gs gu]) 
+"""
 function make_rhs2!(ws::KOrderWs,f,g,order)
     # both variables!
-    fp = view(f[1],:,ws.fwrd_index)
-    gyy = view(g[2],ws.fwrd_index,ws.state_index)
-    gu = view(g[1],ws.state_index,ws.nstate + (1:ws.nshock))
-    gs = view(g[1],ws.state_index,1:(ws.nstate+ws.nshock))
+    fp = view(f[1],:,1:ws.nfwrd)
+    gu = view(ws.gfwrd[1],:,ws.nstate + (1:ws.nshock))
+    gsu = view(ws.gfwrd[1],:,1:(ws.nstate + ws.nshock))
     vrhs1 = view(ws.rhs1,:,1:(ws.nshock*(ws.nstate+ws.nshock)))
-    a_mul_b_kron_c_d!(vrhs1,fp,gyy,gu,gs,order-1,ws.work1,ws.work2)
+
+    for i = 1:(ws.nstate + ws.nshock)
+        for j = 1:ws.nstate
+            ws.gs_su[j,i] = g[1][ws.state_index[j],i]
+        end
+    end
+    
+    dcol = 1
+    base = 1
+    for i = 1:ws.nstate
+        scol = base
+        for j = 1:ws.nstate
+            for k=1:ws.nfwrd
+                ws.gykf[k,dcol] = g[order][ws.fwrd_index[k],scol]
+            end
+            dcol += 1
+            scol += 1
+        end
+        base += ws.nstate + ws.nshock + 1
+    end
+
+    gu = view(ws.gs_su,:,ws.nstate + (1:ws.nshock))
+    a_mul_b_kron_c_d!(vrhs1,fp,ws.gykf,gu,ws.gs_su,order,ws.work1,ws.work2)
 
     dcol = 1
     inc = ws.nstate + 2*ws.nshock + 1
@@ -217,11 +250,12 @@ end
 function store_results_2!(result,ws)
     soffset = 1
     base1 = ws.nstate*(ws.nstate + ws.nshock + 1)*ws.nvar + 1
-    doffset2 = ws.nstate*ws.nvar + 1
+    base2 = ws.nstate*ws.nvar + 1
     inc1 = (ws.nstate + ws.nshock + 1)*ws.nvar
     inc2 = (ws.nstate + ws.nshock + 2)*ws.nvar
     for i=1:ws.nshock
         doffset1 = base1
+        doffset2 = base2
         for j=1:(ws.nstate + ws.nshock)
             copy!(result, doffset1, ws.rhs1, soffset, ws.nvar)
             if j <= ws.nstate
@@ -231,7 +265,7 @@ function store_results_2!(result,ws)
             doffset1 += ws.nvar
             soffset +=  ws.nvar
         end
-        base1 += inc1
+        base1 += ws.nvar
     end
 end
 
@@ -285,26 +319,43 @@ function make_gsk!(ws,f,g,moments)
     copy!(g[2],dcol2,vwork2,1,ws.nvar)
 end
 
+"""
+    function k_order_solution!(g,f,moments,order,ws)
+solves (f^1_0 + f^1_+ gx)X + f^1_+ X (gx ⊗ ... ⊗ gx) = D
 
+
+"""
 function k_order_solution!(g,f,moments,order,ws)
-    make_gg!(ws.gg, g, order-1, ws)
-    make_hh!(ws.hh, g, ws.gg, order-1, ws)
-    partial_faa_di_bruno!(ws.rhs,f,ws.hh,order,ws.faa_di_bruno_ws_2)
+    @time make_gg!(ws.gg, g, order-1, ws)
+    @time make_hh!(ws.hh, g, ws.gg, order-1, ws)
+    @time partial_faa_di_bruno!(ws.rhs,f,ws.hh,order,ws.faa_di_bruno_ws_2)
     # select only endogenous state variables on the RHS
     make_d1!(ws)
     if order == 2
-        make_a1!(ws,f,g)
+        @time make_a1!(ws,f,g)
     end
-    b = view(f[1],:,1:ws.nfwrd)
+    for i=1:ws.nfwrd
+        col = ws.fwrd_index[i]
+        for j=1:ws.nvar
+            ws.b[j,col] = f[1][j,i]
+        end
+    end
     c = g[1][ws.state_index,ws.state_index]
-    gs_ws = EyePlusAtKronBWS(ws.a,b,order,c)
+    @time gs_ws = EyePlusAtKronBWS(ws.nvar,ws.nvar,ws.nstate,order)
     rhs1 = make_rhs_1(ws)
-    generalized_sylvester_solver!(ws.a,b,c,rhs1,order,gs_ws)
-    store_results_1!(g[2],ws)
-    make_rhs2!(ws,f,g,order)
-    store_results_2!(g[2],ws)
 
-    make_gsk!(ws,f,g,moments[2])
+    old_rhs1 = copy(reshape(rhs1,ws.nvar,ws.nstate^2))
+    c0 = copy(c)
+    @time generalized_sylvester_solver!(ws.a,ws.b,c,rhs1,order,gs_ws)
+    x = reshape(rhs1,ws.nvar,ws.nstate^2)
+    @test ws.a*x + ws.b*x*kron(c0,c0) ≈ old_rhs1
+    println("ws.rhs1")
+    display(ws.rhs1)
+    @time store_results_1!(g[2],ws)
+    @time make_rhs2!(ws,f,g,order)
+    @time store_results_2!(g[2],ws)
+
+    @time make_gsk!(ws,f,g,moments[2])
 end
 
 end
