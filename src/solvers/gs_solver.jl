@@ -2,8 +2,8 @@ include("exceptions.jl")
 
 module gs_solver
 
-import ..LinAlg.Schur: DggesWS, dgges!
-import ..LinAlg.linsolve_algo: LinSolveWS, linsolve_core!
+import ...DynLinAlg.Schur: DggesWS, dgges!
+import ...DynLinAlg.linsolve_algo: LinSolveWS, linsolve_core!
 
 import Base.LinAlg.BLAS: scal!, gemm!
 
@@ -23,24 +23,27 @@ type GsSolverWS
     tmp3::Matrix{Float64}
     g1::Matrix{Float64}
     g2::Matrix{Float64}
-
+    eigval::Vector{Complex64}
+    
     function GsSolverWS(d,e,n1)
-        dgges_ws = DggesWS(Ref{UInt8}('N'),Ref{UInt8}('V'),e,d)
+        dgges_ws = DggesWS(Ref{UInt8}('N'), Ref{UInt8}('N'), Ref{UInt8}('N'), e, d)
         n = size(d,1)
         n2 = n - n1
         linsolve_ws = LinSolveWS(n2)
         D11 = view(d,1:n1,1:n1)
         E11 = view(e,1:n1,1:n1)
-        Z11 = view(dgges_ws.vsr,1:n1,1:n1)
-        Z12 = view(dgges_ws.vsr,1:n1,n1+1:n)
-        Z21 = view(dgges_ws.vsr,n1+1:n,1:n1)
-        Z22 = view(dgges_ws.vsr,n1+1:n,n1+1:n)
+        vsr = Matrix{Float64}(n,n)
+        Z11 = view(vsr,1:n1,1:n1)
+        Z12 = view(vsr,1:n1,n1+1:n)
+        Z21 = view(vsr,n1+1:n,1:n1)
+        Z22 = view(vsr,n1+1:n,n1+1:n)
         tmp1 = Matrix{Float64}(n2,n1)
         tmp2 = Matrix{Float64}(n1,n1)
         tmp3 = Matrix{Float64}(n1,n1)
         g1 = Matrix{Float64}(n1,n1)
         g2 = Matrix{Float64}(n2,n1)
-        new(dgges_ws,linsolve_ws,D11,E11,Z11,Z12,Z21,Z22,tmp1,tmp2,tmp3,g1,g2)
+        eigval = Vector{Complex64}(n)
+        new(dgges_ws,linsolve_ws,D11,E11,Z11,Z12,Z21,Z22,tmp1,tmp2,tmp3,g1,g2, eigval)
     end
 end
 
@@ -55,7 +58,7 @@ d \left[\begin{array}{c}I\\g_2\end{array}\right]g_1 = e \left[\begin{array}{c}I\
 """
 function gs_solver!(ws::GsSolverWS,d::Matrix{Float64},e::Matrix{Float64},n1::Int64,qz_criterium::Float64)
 
-    dgges!(ws.dgges_ws,e,d)
+    dgges!('N', 'V', e, d, [0.0], ws.vsr, ws.eigval, ws.dgges_ws)
     nstable = ws.dgges_ws.sdim[]
     
     if nstable < n1
