@@ -124,7 +124,7 @@ type DggesWS
     bwork::Vector{Int64}
     sdim::BlasInt
 
-    function DggesWS(A,B)
+    function DggesWS(jobvsl::Ref{UInt8}, jobvsr::Ref{UInt8}, sort::Ref{UInt8}, A::StridedMatrix{Float64}, B::StridedMatrix{Float64})
         chkstride1(A, B)
         n, m = checksquare(A, B)
         if n != m
@@ -135,12 +135,9 @@ type DggesWS
         alphai = Vector{Float64}(n)
         beta = Vector{Float64}(n)
         bwork = Vector{Int64}(n)
-        jobvsl = 'N'
-        jobvsr = 'N'
         ldvsl = BlasInt(1)
         ldvsr = BlasInt(1)
         sdim = BlasInt(0)
-        sort = 'N'
         lwork = BlasInt(-1)
         work = Vector{Float64}(1)
         sdim = BlasInt(0)
@@ -159,10 +156,15 @@ type DggesWS
               ldvsr, work, lwork, bwork,
               info)
         chklapackerror(info)
+        println(real(work[1]))
         lwork = BlasInt(real(work[1]))
         work = Vector{Float64}(lwork)
         new(alphar,alphai,beta,lwork,work,bwork,sdim)
     end
+end
+
+function DggesWS(A::StridedMatrix{Float64}, B::StridedMatrix{Float64})
+    DggesWS(Ref{UInt8}('N'), Ref{UInt8}('N'), Ref{UInt8}('N'), A, B)
 end
 
 function dgges!(jobvsl::Char, jobvsr::Char, A::StridedMatrix{Float64}, B::StridedMatrix{Float64},
