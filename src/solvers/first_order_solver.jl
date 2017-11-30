@@ -1,10 +1,12 @@
 module FirstOrder
 
 import ...model: Model, get_de, get_abc
-using ..LinAlg.qr_algo
+using ...DynLinAlg.qr_algo
 using ..CyclicReduction
 using ..gs_solver
-import ..LinAlg.linsolve_algo: LinSolveWS, linsolve_core!
+import ...DynLinAlg.linsolve_algo: LinSolveWS, linsolve_core!, linsolve_core_no_lu!, lu!
+import ..Solvers: ResultsPerturbationWs
+import ..GeneralizedSylvester: EyePlusAtKronBWS, generalized_sylvester_solver!
 
 import Base.LinAlg.BLAS: gemm!
 
@@ -21,9 +23,11 @@ type FirstOrderSolverWS
     temp2::Matrix{Float64}
     temp3::Matrix{Float64}
     temp4::Matrix{Float64}
+    temp5::Matrix{Float64}
     b10::Matrix{Float64}
     b11::Matrix{Float64}
-    linsolve_ws::LinSolveWS
+    linsolve_static_ws::LinSolveWS
+    eye_plus_at_kron_b_ws::EyePlusAtKronBWS
     
     function FirstOrderSolverWS(algo::String, jacobian::Matrix, m::Model)
         if m.n_static > 0
@@ -48,11 +52,18 @@ type FirstOrderSolverWS
         temp2 = Matrix{Float64}(m.n_static,m.n_bkwrd+m.n_both)
         temp3 = Matrix{Float64}(m.n_static,m.n_bkwrd+m.n_both)
         temp4 = Matrix{Float64}(m.endo_nbr - m.n_static,m.n_bkwrd+m.n_both)
+        temp5 = Matrix{Float64}(m.endo_nbr,max(m.current_exogenous_nbr,m.lagged_exogenous_nbr))
         b10 = Matrix{Float64}(m.n_static,m.n_static)
         b11 = Matrix{Float64}(m.n_static,length(m.p_current_ns))
-        linsolve_ws = LinSolveWS(m.n_static)
-        
-        new(jacobian_static,qr_ws,solver_ws,ghx,gx,hx,temp1,temp2,temp3,temp4,b10,b11,linsolve_ws)
+        linsolve_static_ws = LinSolveWS(m.n_static)
+        if m.serially_correlated_exogenous
+            eye_plus_at_kron_b_ws = EyePlusAtKronBWS(ma, mb, mc, 1)
+        else
+            eye_plus_at_kron_b_ws = EyePlusAtKronBWS(1, 1, 1, 1)
+        end
+        new(jacobian_static, qr_ws, solver_ws, ghx, gx, hx, temp1,
+            temp2, temp3, temp4, temp5, b10, b11, linsolve_static_ws,
+            eye_plus_at_kron_b_ws)
     end
 end
         
@@ -63,7 +74,7 @@ function remove_static!(ws::FirstOrderSolverWS,jacobian::Matrix,p_static::Vector
                   jacobian)
 end
 
-function add_static!(ws::FirstOrderSolverWS,jacobian::Matrix{Float64},model::Model)
+function add_static!(results::ResultsPerturbationWs,ws::FirstOrderSolverWS,jacobian::Matrix{Float64},model::Model)
     i_static = 1:model.n_static
     #    temp = - jacobian[i_static,model.p_fwrd_b]*gx*hx
     ws.temp1 = view(jacobian,i_static,model.p_fwrd_b)
@@ -72,17 +83,68 @@ function add_static!(ws::FirstOrderSolverWS,jacobian::Matrix{Float64},model::Mod
     ws.b10 = view(jacobian,i_static, model.p_static)
     ws.b11 = view(jacobian,i_static, model.p_current_ns)
     ws.temp3 -= view(jacobian,i_static,model.p_bkwrd_b)
-    for i=1:size(ws.ghx,2)
+    for i=1:(model.n_bkwrd + model.n_both)
         for j=1:length(model.i_dyn)
-            ws.temp4[j,i] = ws.ghx[model.i_dyn[j],i]
+            ws.temp4[j,i] = results.g[1][model.i_dyn[j],i]
         end
     end
     gemm!('N','N',-1.0,ws.b11,ws.temp4,1.0,ws.temp3)
-    linsolve_core!(ws.linsolve_ws,Ref{UInt8}('N'),ws.b10,ws.temp3)
-    ws.ghx[model.i_static,:] = ws.temp3
+    linsolve_core!(ws.linsolve_static_ws,Ref{UInt8}('N'),ws.b10,ws.temp3)
+    for i = 1:model.n_states
+        for j=1:model.n_static
+            results.g[1][model.i_static[j],i] = ws.temp3[j,i]
+        end
+    end
 end
 
-function first_order_solver(ws::FirstOrderSolverWS,algo::String, jacobian::Matrix, model::Model, options)
+using Base.Test
+function make_f1g1plusf2!(results::ResultsPerturbationWs,model,jacobian)
+    nstate = model.n_bkwrd + model.n_both
+    so = nstate*model.endo_nbr + 1
+    for i=1:model.n_current
+        copy!(results.f1g1plusf2,(model.i_current[i]-1)*model.endo_nbr+1,jacobian,so,model.endo_nbr)
+        so += model.endo_nbr
+    end
+    offset = nstate + model.n_current
+    for i = 1:nstate
+        y = view(results.g[1],:,i)
+        z = view(results.f1g1plusf2, :, model.i_bkwrd_b[i])
+        for j=1:nstate
+            x = 0.0
+            for k=1:(model.n_fwrd + model.n_both)
+                x += jacobian[j, offset + k]*y[model.i_fwrd_b[k]]
+            end
+            z[j] += x
+        end
+    end
+    lu!(results.f1g1plusf2_linsolve_ws.lu, results.f1g1plusf2, results.f1g1plusf2_linsolve_ws.ipiv)
+end
+
+function solve_for_derivatives_with_respect_to_shocks(results::ResultsPerturbationWs, jacobian::AbstractMatrix, ws::FirstOrderSolverWS, model::Model)
+    if model.lagged_exogenous_nbr > 0
+        f6 = view(jacobian,:,model.i_lagged_exogenous)
+        for i = 1:model.current_exogenous_nbr
+            for j = 1:model.endo_nbr
+                results.g1_3[i,j] = -f6[i,j]
+            end
+        end
+        linsolve_core_no_lu!(ws, Ref{UInt8}('N'), results.f1g1plusf2, results.g1_3)
+    end
+    if model.current_exogenous_nbr > 0
+        copy!(results.g[1], (model.n_bkwrd + model.n_both)*model.endo_nbr + 1, jacobian,
+              (model.n_fwrd + model.n_bkwrd + 2*model.n_both + model.n_current)*model.endo_nbr + 1,
+              model.current_exogenous_nbr*model.endo_nbr)
+        gu = view(results.g[1],:, model.n_bkwrd + model.n_both + (1:model.current_exogenous_nbr))
+        scale!(gu, -1.0)
+        if model.serially_correlated_exogenous
+            # TO BE DONE
+        else
+            linsolve_core_no_lu!(results.f1g1plusf2_linsolve_ws, Ref{UInt8}('N'), results.f1g1plusf2, gu)
+        end
+    end
+end
+
+function first_order_solver(results::ResultsPerturbationWs,ws::FirstOrderSolverWS,algo::String, jacobian::Matrix, model::Model, options)
     if model.n_static > 0
         remove_static!(ws,jacobian,model.p_static)
     end
@@ -94,21 +156,36 @@ function first_order_solver(ws::FirstOrderSolverWS,algo::String, jacobian::Matri
         if ws.solver_ws.info[1] > 0
             error("CR didn't converge")
         end
-        ws.ghx[model.i_dyn,:] = view(x,:,model.i_bkwrd_ns)
-        ws.gx[:,:] = view(ws.ghx,model.gx_rows,:)
-        ws.hx[:,:] = view(ws.ghx,model.hx_rows,:)
+        for i = 1:length(model.i_bkwrd_ns)
+            for j = 1:length(model.i_dyn)
+                results.g[1][model.i_dyn[j],i] = x[j,model.i_bkwrd_ns[i]]
+            end
+            for j = 1:length(model.i_bkwrd_ns)
+                results.gs[1][j,i] = results.g[1][model.hx_rows[j],i]
+            end
+        end
+        
     elseif algo == "GS"
         d, e = get_de(jacobian[model.n_static+1:end,:],model)
         gs_solver!(ws.solver_ws,d,e,model.n_bkwrd+model.n_both,options.generalized_schur.criterium)
-        ws.gx = ws.solver_ws.g2
-        ws.hx = ws.solver_ws.g1
-        ws.ghx[model.i_bkwrd,:] = ws.solver_ws.g1[1:model.n_bkwrd,:]
-        ws.ghx[model.i_fwrd,:] = ws.solver_ws.g2[1:model.n_fwrd,:]
-        ws.ghx[model.i_both,:] = ws.solver_ws.g2[model.n_fwrd+(1:model.n_both),:]
+        results.gs[1] = ws.solver_ws.g2
+        for i = 1:model.n_bkwrd+model.n_both
+            for j = 1:model.n_bkwrd
+                results.g[1][model.i_bkwrd[j],i] = ws.solver_ws.g1[j,i]
+            end
+            for j = 1:model.n_fwrd
+                results.g[1][model.i_fwrd[j],i] = ws.solver_ws.g2[j,i]
+            end
+            for j = 1:model.n_both
+                results.g[1][model.i_both[j],i] = ws.solver_ws.g2[model.n_fwrd+j,i]
+            end
+        end
     end
     if model.n_static > 0
-        add_static!(ws,jacobian,model)
+        add_static!(results, ws, jacobian, model)
     end
+    make_f1g1plusf2!(results, model, jacobian)        
+    solve_for_derivatives_with_respect_to_shocks(results, jacobian, ws, model)
 end
 
 end    
