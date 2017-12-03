@@ -89,16 +89,17 @@ with respect to [y_s, u, σ, ϵ]
 """  
 function  make_hh!(hh, g, gg, order, ws)
     if order == 1
-        n = ws.nstate + 2*ws.nshock + 1
-        vh1 = view(hh[1],1:ws.nfwrd,1:n)
-        vg1 = view(g[1],ws.fwrd_index,:)
-        A_mul_B!(vh1, vg1, gg[1])
-        vh2 = view(hh[1],ws.nfwrd+(1:ws.nvar),1:(ws.nstate+ws.nshock+1))
-        copy!(vh2,g[1])
         for i = 1:ws.nstate + ws.nshock
-            hh[1][ws.nfwrd + ws.nvar + i,i] = 1.0
+            hh[1][i,i] = 1.0
         end
+        vh1 = view(hh[1],ws.nstate + (1:ws.nvar),1:(ws.nstate+ws.nshock+1))
+        copy!(vh1,g[1])
+        n = ws.nstate + 2*ws.nshock + 1
+        vh2 = view(hh[1],ws.nstate + ws.nvar + (1:ws.nfwrd),1:n)
+        vg2 = view(g[1],ws.fwrd_index,:)
+        A_mul_B!(vh2, vg2, gg[1])
     else
+        # CHECK row order !!!!
         # derivatives of g() for forward looking variables
         copy!(ws.gfwrd[order],view(g[order],ws.fwrd_index,:))
         # derivatives for g(g(y,u,σ),ϵ,σ)
@@ -153,9 +154,9 @@ function make_a1!(ws,f,g)
         for j=1:ws.nstate
             x = 0.0
             for k=1:ws.nfwrd
-                x += f[1][j,k]*g[1][ws.fwrd_index[k],i]
+                x += f[1][j,ws.nstate + ws.ncur + k]*g[1][ws.fwrd_index[k],i]
             end
-            ws.a[j,i] += x
+            ws.a[j,ws.state_index[i]] += x
         end
     end
 end
@@ -201,11 +202,7 @@ It solves
     (f_+*g_y + f_0)X = -(D + f_+*g_yy*(gu ⊗ [gs gu]) 
 """
 function make_rhs2!(ws::KOrderWs,f,g,order)
-    # both variables!
-    fp = view(f[1],:,1:ws.nfwrd)
-    gu = view(ws.gfwrd[1],:,ws.nstate + (1:ws.nshock))
-    gsu = view(ws.gfwrd[1],:,1:(ws.nstate + ws.nshock))
-    vrhs1 = view(ws.rhs1,:,1:(ws.nshock*(ws.nstate+ws.nshock)))
+    fp = view(f[1],:,ws.nstate + ws.ncur + (1:ws.nfwrd))
 
     for i = 1:(ws.nstate + ws.nshock)
         for j = 1:ws.nstate
@@ -228,15 +225,16 @@ function make_rhs2!(ws::KOrderWs,f,g,order)
     end
 
     gu = view(ws.gs_su,:,ws.nstate + (1:ws.nshock))
+    vrhs1 = view(ws.rhs1,:,1:(ws.nshock*(ws.nstate+ws.nshock)))
     a_mul_b_kron_c_d!(vrhs1,fp,ws.gykf,gu,ws.gs_su,order,ws.work1,ws.work2)
-
+    
     dcol = 1
     inc = ws.nstate + 2*ws.nshock + 1
     base = ws.nstate*inc + 1
     for i=1:ws.nshock
         scol = base 
-        for j=1:(ws.nstate + ws.nshock)
-            for k=1:ws.nvar
+        for j = 1:(ws.nstate + ws.nshock)
+            for k = 1:ws.nvar
                 ws.rhs1[k,dcol] = -ws.rhs1[k,dcol] - ws.rhs[k,scol]
             end
             dcol += 1
@@ -251,8 +249,7 @@ function store_results_2!(result,ws)
     soffset = 1
     base1 = ws.nstate*(ws.nstate + ws.nshock + 1)*ws.nvar + 1
     base2 = ws.nstate*ws.nvar + 1
-    inc1 = (ws.nstate + ws.nshock + 1)*ws.nvar
-    inc2 = (ws.nstate + ws.nshock + 2)*ws.nvar
+    inc = (ws.nstate + ws.nshock + 1)*ws.nvar
     for i=1:ws.nshock
         doffset1 = base1
         doffset2 = base2
@@ -260,19 +257,20 @@ function store_results_2!(result,ws)
             copy!(result, doffset1, ws.rhs1, soffset, ws.nvar)
             if j <= ws.nstate
                 copy!(result, doffset2, ws.rhs1, soffset, ws.nvar)
-                doffset2 += inc2
+                doffset2 += inc
             end
             doffset1 += ws.nvar
             soffset +=  ws.nvar
         end
-        base1 += ws.nvar
+        base1 += (ws.nstate + ws.nshock + 1)*ws.nvar
+        base2 += ws.nvar
     end
 end
 
 function make_gsk!(ws,f,g,moments)
     for i=1:ws.nfwrd
         for j=1:ws.nvar
-            ws.a[j,ws.fwrd_index[i]] += f[1][j,i]
+            ws.a[j,ws.fwrd_index[i]] += f[1][j, ws.nstate + ws.ncur + i]
         end
     end
 
@@ -291,7 +289,7 @@ function make_gsk!(ws,f,g,moments)
         end
         offset += ws.nstate + ws.nshock + 1
     end
-    vfplus = view(f[1],:,1:ws.nfwrd)
+    vfplus = view(f[1],:,ws.nstate + ws.ncur + (1:ws.nfwrd))
     vg1 = reshape(vg,ws.nfwrd,nshock2)
     vwork1 = reshape(view(ws.work1,1:(ws.nvar*nshock2)),ws.nvar,nshock2)
     A_mul_B!(vwork1,vfplus,vg1)
@@ -334,23 +332,18 @@ function k_order_solution!(g,f,moments,order,ws)
     if order == 2
         @time make_a1!(ws,f,g)
     end
-    for i=1:ws.nfwrd
-        col = ws.fwrd_index[i]
+    for i = 1:ws.nfwrd
+        col1 = ws.fwrd_index[i]
+        col2 = ws.nstate + ws.ncur + i
         for j=1:ws.nvar
-            ws.b[j,col] = f[1][j,i]
+            ws.b[j, col1] = f[1][j, col2]
         end
     end
-    c = g[1][ws.state_index,ws.state_index]
+    c = g[1][ws.state_index,1:ws.nstate]
     @time gs_ws = EyePlusAtKronBWS(ws.nvar,ws.nvar,ws.nstate,order)
     rhs1 = make_rhs_1(ws)
 
-    old_rhs1 = copy(reshape(rhs1,ws.nvar,ws.nstate^2))
-    c0 = copy(c)
     @time generalized_sylvester_solver!(ws.a,ws.b,c,rhs1,order,gs_ws)
-    x = reshape(rhs1,ws.nvar,ws.nstate^2)
-    @test ws.a*x + ws.b*x*kron(c0,c0) ≈ old_rhs1
-    println("ws.rhs1")
-    display(ws.rhs1)
     @time store_results_1!(g[2],ws)
     @time make_rhs2!(ws,f,g,order)
     @time store_results_2!(g[2],ws)
