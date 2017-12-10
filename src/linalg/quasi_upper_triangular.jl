@@ -6,12 +6,12 @@ import Base.similar
 import Base.getindex
 import Base.setindex!
 import Base.copy
-import Base.A_mul_B!, Base.At_mul_B!, Base.A_mul_Bt! 
+import Base: A_mul_B!, At_mul_B!, A_mul_Bt!, A_ldiv_B!
 import Base.LinAlg.BlasInt
 import Base.LinAlg.BLAS.@blasfunc
 import Base.LinAlg.BLAS.libblas
 
-export QuasiUpperTriangular, I_plus_rA_ldiv_B!, I_plus_rA_plus_sB_ldiv_C!
+export QuasiUpperTriangular, I_plus_rA_ldiv_B!, I_plus_rA_plus_sB_ldiv_C!, A_rdiv_B!, A_rdiv_Bt! 
 
 immutable QuasiUpperTriangular{T<:Real,S<:AbstractMatrix} <: AbstractMatrix{T}
     data::S
@@ -396,6 +396,52 @@ A_mul_Bt!(c::QuasiUpperTriangular,a::QuasiUpperTriangular,b::QuasiUpperTriangula
 A_mul_B!(c::AbstractMatrix,a::QuasiUpperTriangular,b::QuasiUpperTriangular) = A_mul_B!(c,a,b.data)
 At_mul_B!(c::AbstractMatrix,a::QuasiUpperTriangular,b::QuasiUpperTriangular) = At_mul_B!(c,a,b.data)
 A_mul_Bt!(c::AbstractMatrix,a::QuasiUpperTriangular,b::QuasiUpperTriangular) = A_mul_Bt!(c,a,b.data)
+
+function A_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::VecOrMat{Float64}, offset_a::Int64,
+                  ma::Int64, na::Int64, b::QuasiUpperTriangular, offset_b::Int64, nb::Int64)
+    m, n = size(b)
+    copy!(c, offset_c, a, offset_a, ma*na)
+    alpha = 1.0
+    ccall((@blasfunc(dtrmm_), libblas), Void,
+          (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
+           Ref{Float64}, Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt}),
+          Ref{UInt8}('R'), Ref{UInt8}('U'), Ref{UInt8}('N'), Ref{UInt8}('N'), Ref{BlasInt}(ma), Ref{BlasInt}(na),
+          Ref{Float64}(alpha), b.data, Ref{BlasInt}(na), Ref(c, offset_c), Ref{BlasInt}(ma))
+
+    inda = offset_a + ma
+    indc = offset_c
+    @inbounds for i = 2:na
+        x = b[i,i-1]
+        @simd for j = 1:ma
+            c[indc] += x*a[inda]
+            inda += 1
+            indc += 1
+        end
+    end
+end
+
+using Base.Test
+function At_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::QuasiUpperTriangular, offset_a::Int64,
+                  ma::Int64, na::Int64, b::VecOrMat{Float64}, offset_b::Int64, nb::Int64)
+    copy!(c, offset_c, b, offset_b, ma*nb)
+    alpha = 1.0
+    ccall((@blasfunc(dtrmm_), libblas), Void,
+          (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
+           Ref{Float64}, Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt}),
+          Ref{UInt8}('L'), Ref{UInt8}('U'), Ref{UInt8}('T'), Ref{UInt8}('N'), Ref{BlasInt}(ma), Ref{BlasInt}(nb),
+          Ref{Float64}(alpha), a.data, Ref{BlasInt}(ma), Ref(c, offset_c), Ref{BlasInt}(ma))
+    
+    @inbounds for i = 2:ma
+        x = a[i,i-1]
+        indb = offset_b + i - 1
+        indc = offset_c + i - 2
+        @simd for j = 1:nb
+            c[indc] += x*b[indb]
+            indb += ma
+            indc += ma
+        end
+    end
+end
 
 # solver by substitution
 function A_ldiv_B!(a::QuasiUpperTriangular, b::AbstractMatrix)
