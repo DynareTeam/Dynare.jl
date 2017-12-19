@@ -180,14 +180,14 @@ function make_rhs_1(ws::KOrderWs)
     view(ws.rhs1,:,1:(ws.nstate*ws.nstate))
 end
 
-function store_results_1!(result,ws)
+function store_results_1!(result, gs_ws, ws)
     soffset = 1
     base = 1
     inc = (ws.nstate + ws.nshock + 1)*ws.nvar
     for i=1:ws.nstate
         doffset = base 
         for j=1:ws.nstate
-            copy!(result, doffset, ws.rhs1, soffset, ws.nvar)
+            copy!(result, doffset, gs_ws.result, soffset, ws.nvar)
             doffset += ws.nvar
             soffset +=  ws.nvar
         end
@@ -242,6 +242,7 @@ function make_rhs2!(ws::KOrderWs,f,g,order)
         end
         base += inc
     end
+    vrhs1_orig = copy(vrhs1)
     linsolve_core!(ws.linsolve_ws_1,Ref{UInt8}('N'),ws.a,vrhs1)
 end
     
@@ -343,11 +344,12 @@ function k_order_solution!(g,f,moments,order,ws)
     @time gs_ws = EyePlusAtKronBWS(ws.nvar,ws.nvar,ws.nstate,order)
     rhs1 = make_rhs_1(ws)
 
-    @time generalized_sylvester_solver!(ws.a,ws.b,c,rhs1,order,gs_ws)
-    @time store_results_1!(g[2],ws)
+    d = Vector{Float64}(ws.nvar*ws.nstate^order)
+    copy!(d,rhs1)
+    @time generalized_sylvester_solver!(ws.a,ws.b,c,d,order,gs_ws)
+    @time store_results_1!(g[2], gs_ws, ws)
     @time make_rhs2!(ws,f,g,order)
     @time store_results_2!(g[2],ws)
-
     @time make_gsk!(ws,f,g,moments[2])
 end
 

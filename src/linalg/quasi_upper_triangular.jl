@@ -419,8 +419,84 @@ function A_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::VecOrMat{Float64}, o
         end
     end
 end
-
 using Base.Test
+function A_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::QuasiUpperTriangular, offset_a::Int64,
+                  ma::Int64, na::Int64, b::VecOrMat{Float64}, offset_b::Int64, nb::Int64)
+    copy!(c, offset_c, b, offset_b, na*nb)
+    alpha = 1.0
+    ccall((@blasfunc(dtrmm_), libblas), Void,
+          (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
+           Ref{Float64}, Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt}),
+          Ref{UInt8}('L'), Ref{UInt8}('U'), Ref{UInt8}('N'), Ref{UInt8}('N'), Ref{BlasInt}(ma), Ref{BlasInt}(nb),
+          Ref{Float64}(alpha), a.data, Ref{BlasInt}(ma), Ref(c, offset_c), Ref{BlasInt}(na))
+
+    @inbounds for i = 2:ma
+        x = a[i,i-1]
+        indb = offset_b 
+        indc = offset_c + 1
+        @simd for j = 1:nb
+            c[indc] += x*b[indb]
+            indb += ma
+            indc += ma
+        end
+    end
+end
+
+function A_mul_B!(c::Array{Float64,1}, offset_c::Int64,
+                  a::QuasiUpperTriangular, offset_a::Int64, ma::Int64, na::Int64,
+                  b::SubArray{Float64,1,Array{Float64,1},Tuple{UnitRange{Int64}},true}, offset_b::Int64, nb::Int64)
+    copy!(c, offset_c, b, offset_b, na*nb)
+    alpha = 1.0
+    ccall((@blasfunc(dtrmm_), libblas), Void,
+          (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
+           Ref{Float64}, Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt}),
+          Ref{UInt8}('L'), Ref{UInt8}('U'), Ref{UInt8}('N'), Ref{UInt8}('N'), Ref{BlasInt}(na), Ref{BlasInt}(nb),
+          Ref{Float64}(alpha), a.data, Ref{BlasInt}(ma), Ref(c, offset_c), Ref{BlasInt}(na))
+    
+    @inbounds for i= 2:ma
+        x = a[i,i-1]
+        indb = offset_b
+        indc = offset_c + 1
+        @simd for j=1:nb
+            c[indc] += x*b[indb]
+            indb += ma
+            indc += ma
+        end
+        offset_b +=  1
+        offset_c += 1
+    end
+    c
+end
+
+function A_mul_B!(c::SubArray{Float64,1,Array{Float64,1},Tuple{UnitRange{Int64}},true}, offset_c::Int64,
+                  a::QuasiUpperTriangular, offset_a::Int64, ma::Int64, na::Int64,
+                  b::SubArray{Float64,1,Array{Float64,1},Tuple{UnitRange{Int64}},true}, offset_b::Int64, nb::Int64)
+    copy!(c, offset_c, b, offset_b, na*nb)
+    alpha = 1.0
+    ccall((@blasfunc(dtrmm_), libblas), Void,
+          (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
+           Ref{Float64}, Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt}),
+          Ref{UInt8}('L'), Ref{UInt8}('U'), Ref{UInt8}('N'), Ref{UInt8}('N'), Ref{BlasInt}(na), Ref{BlasInt}(nb),
+          Ref{Float64}(alpha), a.data, Ref{BlasInt}(ma), Ref(c, offset_c), Ref{BlasInt}(na))
+
+    offsetb_orig = offset_b
+    offsetc_orig = offset_c
+    @inbounds for i= 2:ma
+        x = a[i,i-1]
+        indb = offset_b 
+        indc = offset_c +1
+        @simd for j=1:nb
+            c[indc] += x*b[indb]
+            indb += ma
+            indc += ma
+        end
+        offset_b += 1
+        offset_c += 1
+    end
+    c
+end
+
+
 function At_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::QuasiUpperTriangular, offset_a::Int64,
                   ma::Int64, na::Int64, b::VecOrMat{Float64}, offset_b::Int64, nb::Int64)
     copy!(c, offset_c, b, offset_b, ma*nb)
@@ -442,6 +518,29 @@ function At_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::QuasiUpperTriangula
         end
     end
 end
+
+function A_mul_Bt!(c::AbstractVector, offset_c::Int64, a::AbstractVector, offset_a::Int64, ma::Int64, na::Int64, b::QuasiUpperTriangular, offset_b::Int64, nb::Int64)
+    copy!(c, offset_c, a, offset_a, ma*na)
+    alpha = 1.0
+    ccall((@blasfunc(dtrmm_), libblas), Void,
+          (Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
+           Ref{Float64}, Ptr{Float64}, Ref{BlasInt}, Ptr{Float64}, Ref{BlasInt}),
+          'R', 'U', 'T', 'N', ma, nb,
+          alpha, b.data, nb, Ref(c, offset_c), ma)
+
+    inda = offset_a
+    indc = offset_c + ma
+    @inbounds for j= 2:na
+        x = alpha*b[j,j-1]
+        @simd for i=1:ma
+            c[indc] += x*a[inda]
+            inda += 1
+            indc += 1
+        end
+    end
+    c
+end
+
 
 # solver by substitution
 function A_ldiv_B!(a::QuasiUpperTriangular, b::AbstractMatrix)
