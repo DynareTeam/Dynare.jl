@@ -94,6 +94,33 @@ function a_mul_b_kron_c!(d::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix
 end
 
 """
+    function kron_at_kron_b_mul_c!(d::AbstractVector, offset_c::Int64, a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector, offset_cc::Int64, work1::AbstractVector, work2::AbstractVector)
+computes d = (a^T ⊗ a^T ⊗ ... ⊗ a^T ⊗ b)c using work vectors work1 and work2
+""" 
+function kron_at_kron_b_mul_c!(d::AbstractVector, offset_d::Int64, a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector, offset_c::Int64, work1::AbstractVector, work2::AbstractVector, offset_w::Int64)
+    mb,nb = size(b)
+    if order == 0
+        A_mul_B!(d,offset_d,b,1,mb,nb,c,offset_c,1)
+    else
+        ma, na = size(a)
+        #    length(work) == naorder*mb  || throw(DimensionMismatch("The dimension of vector , $(length(c)) doesn't correspond to order, ($order)  and the dimension of the matrices a, $(size(a)), and b, $(size(b))"))
+        p = ma^order
+        kron_mul_elem!(work1, 1, b, c, offset_c, p, 1)
+        p = Int(p/ma)
+        q = mb
+        for i = 1:order
+            kron_mul_elem_t!(work2, offset_w, a, work1, 1, p, q)
+            if i < order
+                copy!(work1, 1, work2, offset_w, p*na*q)
+                p = Int(p/ma)
+                q *= na
+            end
+        end
+        copy!(d, offset_d, work2, offset_w, p*na*q)
+    end
+end
+
+"""
     function kron_at_kron_b_mul_c!(d::AbstractVector, a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector, work1::AbstractVector, work2::AbstractVector)
 computes d = (a^T ⊗ a^T ⊗ ... ⊗ a^T ⊗ b)c using work vectors work1 and work2
 """ 
@@ -118,6 +145,11 @@ function kron_at_kron_b_mul_c!(d::AbstractVector, a::AbstractMatrix, order::Int6
         end
         copy!(d,1,work2,1,p*na*q)
     end
+end
+
+function kron_at_kron_b_mul_c!(a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector, offset_c::Int64, work::AbstractVector)
+    kron_at_kron_b_mul_c!(work, 1, a, order, b, c, offset_c, work, c, offset_c)
+    copy!(c, work)
 end
 
 function kron_at_kron_b_mul_c!(a::AbstractMatrix, order::Int64, b::AbstractMatrix, c::AbstractVector, work::AbstractVector)
@@ -234,24 +266,24 @@ We use vec(a*b*(c ⊗ d ⊗ ... ⊗ d)) = (c' ⊗ d' ⊗ ... ⊗ d' ⊗ a)vec(b)
 """
 function a_mul_b_kron_c_d!(e::AbstractMatrix, a::AbstractMatrix, b::AbstractMatrix, c::AbstractMatrix, d::AbstractMatrix, order::Int64, work1::AbstractVector, work2::AbstractVector)
 
-    ma, na = size(a)
-    mb, nb = size(b)
-    mc, nc = size(c)
-    md, nd = size(d)
-    me, ne = size(e)
-    na == mb || throw(DimensionMismatch("The number of columns of a, $(size(a,2)), doesn't match the number of rows of b, $(size(b,1))"))
-    nb == mc*md^(order-1) || throw(DimensionMismatch("The number of columns of b, $(size(b,2)), doesn't match the number of rows of c, $(size(c,1)), and d, $(size(d,1)) for order, $order"))
-    (ma == me && nc*nd^(order-1) == ne) || throw(DimensionMismatch("Dimension mismatch for e: $(size(e)) while ($ma, $(nc*nd^(order-1))) was expected"))
-    A_mul_B!(work1, 1, a, 1, ma, mb, vec(b), 1, nb)
-    p = mc*md^(order - 2)
-    q = ma
-    for i = 0:order - 2
-        kron_mul_elem_t!(work2, 1, d, work1, 1, p, q)
+     ma, na = size(a)
+     mb, nb = size(b)
+     mc, nc = size(c)
+     md, nd = size(d)
+     me, ne = size(e)
+     na == mb || throw(DimensionMismatch("The number of columns of a, $(size(a,2)), doesn't match the number of rows of b, $(size(b,1))"))
+     nb == mc*md^(order-1) || throw(DimensionMismatch("The number of columns of b, $(size(b,2)), doesn't match the number of rows of c, $(size(c,1)), and d, $(size(d,1)) for order, $order"))
+     (ma == me && nc*nd^(order-1) == ne) || throw(DimensionMismatch("Dimension mismatch for e: $(size(e)) while ($ma, $(nc*nd^(order-1))) was expected"))
+     A_mul_B!(work1, 1, a, 1, ma, mb, vec(b), 1, nb)
+     p = mc*md^(order - 2)
+     q = ma
+     for i = 0:order - 2
+        @time kron_mul_elem_t!(work2, 1, d, work1, 1, p, q)
         copy!(work1,work2)
         p = Int(p/md)
         q *= nd
     end
-    kron_mul_elem_t!(work2, c, work1, 1,q)
+    @time kron_mul_elem_t!(work2, c, work1, 1,q)
     copy!(e, 1, work2, 1, ma*nc*nd^(order-1))
 end
 
@@ -301,7 +333,7 @@ function kron_mul_elem_t!(c::Vector, offset_c::Int64, a::AbstractMatrix, b::Vect
     m, n = size(a)
     length(b) >= m*p*q || throw(DimensionMismatch("The dimension of vector b, $(length(b)) doesn't correspond to order, ($p, $q)  and the dimensions of the matrix, $(size(a))"))
     length(c) >= n*p*q || throw(DimensionMismatch("The dimension of the vector c, $(length(c)) doesn't correspond to order, ($p, $q)  and the dimensions of the matrix, $(size(a))"))
-
+    
     begin
         if p == 1 && q == 1
             # a'*b
@@ -347,20 +379,25 @@ import Base.LinAlg.BLAS: @blasfunc, libblas
 function A_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::VecOrMat{Float64},
                   offset_a::Int64, ma::Int64, na::Int64, b::VecOrMat{Float64},
                   offset_b::Int64, nb::Int64)
+
     gemm!('N', 'N', 1.0, Ref(a, offset_a), ma, na, Ref(b, offset_b),
           nb, 0.0, Ref(c, offset_c))
 end
 
 function A_mul_B!(c::Array{Float64,1}, offset_c::Int64, a::SubArray{Float64,2,Array{Float64,2},Tuple{Base.Slice{Base.OneTo{Int64}},UnitRange{Int64}},true}, offset_a::Int64, ma::Int64, na::Int64, b::Array{Float64,1}, offset_b::Int64, nb::Int64)
+    ref_a = Ref(a, offset_a)
+    ref_b = Ref(b, offset_b)
+    ref_c = Ref(c, offset_c)
+    lda = max(1,size(a.parent,1))
     ccall((@blasfunc(dgemm_), libblas), Void,
           (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
            Ref{BlasInt}, Ref{Float64}, Ptr{Float64}, Ref{BlasInt},
            Ptr{Float64}, Ref{BlasInt}, Ref{Float64}, Ptr{Float64},
            Ref{BlasInt}),
           'N', 'N', ma, nb,
-          na, 1.0, Ref(a, offset_a), max(1,size(a.parent,1)),
-          Ref(b,offset_b), max(1,na), 0.0, Ref(c, offset_c),
-          max(1,ma))
+          na, 1.0, ref_a, lda,
+          ref_b, na, 0.0, ref_c,
+          ma)
 end
 
 function A_mul_B!(c::Array{Float64,1}, offset_c::Int64, a::Array{Float64,1}, offset_a::Int64, ma::Int64, na::Int64, b::SubArray{Float64,2,Array{Float64,2},Tuple{Base.Slice{Base.OneTo{Int64}},UnitRange{Int64}},true}, offset_b::Int64, nb::Int64)
