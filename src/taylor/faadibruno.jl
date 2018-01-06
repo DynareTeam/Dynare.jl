@@ -1,8 +1,7 @@
 module FaaDiBruno
 using Combinatorics
 import Base: start, next, done
-include("../linalg/kronecker_utils.jl")
-import .Kronecker: a_mul_kron_b!
+import Dynare.DynLinAlg.Kronecker: a_mul_kron_b!
 
 export FaaDiBrunoWs, faa_di_bruno!, partial_faa_di_bruno!
 
@@ -58,7 +57,7 @@ function setup_recipees!(recipees::trecipees,order::Int)
     end
 end
 
-function faa_di_bruno!(dfg::Matrix{Float64},f::Array{Matrix{Float64},1},g::Array{Matrix{Float64}},order::Int,ws::FaaDiBrunoWs)
+function faa_di_bruno!(dfg::AbstractMatrix{Float64},f::Array{Matrix{Float64},1},g::Array{Matrix{Float64}},order::Int,ws::FaaDiBrunoWs)
     m = size(f[1],1)
     n = size(g[1],2)
     work1 = reshape(view(ws.work1,1:m*n^order),m,n^order)
@@ -91,7 +90,7 @@ end
 computes the derivatives of f(g()) at order "order"
 but without the term involving order'th derivative of g
 """
-function partial_faa_di_bruno!(dfg::Matrix{Float64},f::Array{Matrix{Float64},1},g::Array{Matrix{Float64}},order::Int,ws::FaaDiBrunoWs)
+function partial_faa_di_bruno!(dfg::AbstractMatrix{Float64},f::Array{Matrix{Float64},1},g::Array{Matrix{Float64}},order::Int,ws::FaaDiBrunoWs)
     m = size(f[1],1)
     n = size(g[1],2)
     if order == 1
