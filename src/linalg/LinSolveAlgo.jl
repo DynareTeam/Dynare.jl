@@ -1,4 +1,4 @@
-module linsolve_algo
+module LinSolveAlgo
 
 import Base.LinAlg.BlasInt
 import Base.LinAlg.BLAS.@blasfunc

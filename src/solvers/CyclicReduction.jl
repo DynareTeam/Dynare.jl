@@ -1,7 +1,6 @@
 module CyclicReduction
 
-import ...model.Model
-import ...DynLinAlg.linsolve_algo: LinSolveWS, linsolve_core!
+import LinSolveAlgo: LinSolveWS, linsolve_core!
 
 import Base.LinAlg.BLAS: scal!, gemm!
 

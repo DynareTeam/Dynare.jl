@@ -1,4 +1,4 @@
-module Schur
+module SchurAlgo
 # general Schur decomposition with reordering
 # adataped from ./base/linalg/lapack.jl
 

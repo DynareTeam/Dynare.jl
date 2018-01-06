@@ -1,10 +1,10 @@
-module FirstOrder
+module FirstOrderSolver
 
 import ...model: Model, get_de, get_abc
-using ...DynLinAlg.qr_algo
-using ..CyclicReduction
+using QrAlgo
+using CyclicReduction
 using ..gs_solver
-import ...DynLinAlg.linsolve_algo: LinSolveWS, linsolve_core!, linsolve_core_no_lu!, lu!
+import LinSolveAlgo: LinSolveWS, linsolve_core!, linsolve_core_no_lu!, lu!
 import ..Solvers: ResultsPerturbationWs
 import ..GeneralizedSylvester: EyePlusAtKronBWS, generalized_sylvester_solver!
 

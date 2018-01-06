@@ -1,8 +1,8 @@
-module KOrder
+module KOrderSolver
 
 using Base.Test
-using ...DynLinAlg.Kronecker
-using ...DynLinAlg.linsolve_algo
+using KroneckerUtils
+using LinSolveAlgo
 import Base.LinAlg.BLAS: gemm!
 import ..GeneralizedSylvester: EyePlusAtKronBWS, generalized_sylvester_solver!
 import ...FaaDiBruno: partial_faa_di_bruno!, FaaDiBrunoWs
@@ -110,16 +110,13 @@ function  make_hh!(hh, g, gg, order, ws)
         # derivatives of g() for forward looking variables
         copy!(ws.gfwrd[order],view(g[order],ws.fwrd_index,:))
         # derivatives for g(g(y,u,σ),ϵ,σ)
-        vh1 = view(hh[order],1:ws.nfwrd,:)
-        # partial_faa_di_bruno needs Matrix argument! TO BE FIXED
-        tmp = copy(vh1)
-        partial_faa_di_bruno!(tmp,ws.gfwrd,gg,order,ws.faa_di_bruno_ws_1)
-        copy!(vh1,tmp)
+        vh1 = view(hh[order],ws.nstate + ws.ncur + (1:ws.nfwrd),:)
+        partial_faa_di_bruno!(vh1, ws.gfwrd, gg, order, ws.faa_di_bruno_ws_1)
 
         i1 = CartesianIndex(1,(repmat([1], order - 1))...)
         i2 = CartesianIndex(1,(repmat([ws.nstate + ws.nshock + 1], order - 1))...)
         hdims = Tuple(repmat([ws.nstate + 2*ws.nshock + 1],order))
-        pane_copy!(hh[order],hdims, ws.cur_index + ws.nfwrd, g[order], i1, i2, 1:ws.nvar, ws.nstate + ws.nshock + 1)
+        pane_copy!(hh[order],hdims, ws.cur_index + ws.nstate, g[order], i1, i2, 1:ws.nvar, ws.nstate + ws.nshock + 1)
     end        
 end
 
@@ -184,37 +181,55 @@ function make_a1!(a::Matrix{Float64}, f::Vector{Matrix{Float64}},
     end
 end
 
-function make_rhs_1!(rhs1::Matrix{Float64}, nstate::Int64,
-                     nshock::Int64, nvar::Int64, rhs::Matrix{Float64})
-    dcol = 1
-    base = 1
-    inc = (nstate + 2*nshock + 1)
-    @inbounds for i=1:nstate
-        scol = base
-        for j=1:nstate
-            @simd for k = 1:nvar
-                rhs1[k,dcol] = -rhs[k,scol]
-            end
-            dcol += 1
-            scol += 1
+function make_rhs_1_1!(rhs1::AbstractMatrix, rhs::AbstractMatrix, rs::Range{Int64}, rd::Range{Int64}, n::Int64, inc::Int64, order::Int64)
+    @inbounds if order > 1
+        rs_ = rs
+        rd_ = rd
+        inc1 = inc^(order-1)
+        n1 = n^(order-1)
+        for i=1:n
+            make_rhs_1_1!(rhs1, rhs, rs_, rd_, n, inc, order - 1)
+            rs_ += inc1
+            rd_ += n1
         end
-        base += inc
+    else
+        v1 = view(rhs,:,rs)
+        v2 = view(rhs1,:,rd)
+        v2 .= -v1
     end
 end
 
-function store_results_1!(result::Matrix{Float64}, gs_ws_result::Matrix{Float64}, nstate::Int64, nshock::Int64, nvar::Int64)
-    soffset = 1
-    base = 1
-    inc = (nstate + nshock + 1)*nvar
-    @inbounds for i=1:nstate
-        doffset = base 
-        @simd for j=1:nstate
-            copy!(result, doffset, gs_ws_result, soffset, nvar)
-            doffset += nvar
-            soffset +=  nvar
+function make_rhs_1!(rhs1::Matrix{Float64}, rhs::Matrix{Float64}, nstate::Int64,
+                     nshock::Int64, nvar::Int64, order::Int64)
+    rs = 1:nstate
+    rd = 1:nstate
+    inc = (nstate + 2*nshock + 1)
+    make_rhs_1_1!(rhs1, rhs, rs, rd, nstate, inc, order) 
+end
+
+function store_results_1_1!(rhs1::AbstractMatrix, rhs::AbstractMatrix, rs::Range{Int64}, rd::Range{Int64}, n::Int64, inc::Int64, order::Int64)
+    @inbounds if order > 1
+        rs_ = rs
+        rd_ = rd
+        inc1 = inc^(order-1)
+        n1 = n^(order-1)
+        for i = 1:n
+            store_results_1_1!(rhs1, rhs, rs_, rd_, n, inc, order - 1)
+            rs_ += n1
+            rd_ += inc1
         end
-        base += inc
+    else
+        v1 = view(rhs,:,rs)
+        v2 = view(rhs1,:,rd)
+        v2 .= v1
     end
+end
+
+function store_results_1!(result::Matrix{Float64}, gs_ws_result::Matrix{Float64}, nstate::Int64, nshock::Int64, nvar::Int64, order::Int64)
+    rs = 1:nstate
+    rd = 1:nstate
+    inc = (nstate + nshock + 1)
+    store_results_1_1!(result, gs_ws_result, rs, rd, nstate, inc, order) 
 end
 
 function make_gs_su!(gs_su::Matrix{Float64}, g::Matrix{Float64}, nstate::Int64, nshock::Int64, state_index::Vector{Int64})
@@ -225,24 +240,63 @@ function make_gs_su!(gs_su::Matrix{Float64}, g::Matrix{Float64}, nstate::Int64, 
     end
 end
 
-function make_gykf!(gykf::Matrix{Float64}, g::Matrix{Float64}, nstate::Int64, nfwrd::Int64, nshock::Int64, fwrd_index::Vector{Int64})
-    dcol = 1
-    base = 1
-    @inbounds for i = 1:nstate
-        scol = base
-        for j = 1:nstate
-            @simd for k=1:nfwrd
-                kf = fwrd_index[k]
-                gykf[k,dcol] = g[kf,scol]
-            end
-            dcol += 1
-            scol += 1
+function make_gykf_1!(gykf::Matrix{Float64}, g::Matrix{Float64}, rs::Range{Int64}, rd::Range{Int64}, n::Int64, inc::Int64, fwrd_index::Vector{Int64}, order::Int64)
+    if order > 1
+        rs_ = rs
+        rd_ = rd
+        inc1 = inc^(order-1)
+        n1 = n^(order-1)
+        for i = 1:n
+            make_gykf_1!(gykf, g, rs, rd, n, inc, fwrd_index, order - 1)
+            rs_ += inc1
+            rd_ += n1
         end
-        base += nstate + nshock + 1
+    else
+        v1 = view(g,fwrd_index,rs_)
+        v2 = view(gykf,:,rd_)
+        v2 .= v1
     end
 end
 
-function make_rhs1!(rhs1::Matrix{Float64}, rhs::Matrix{Float64}, nstate::Int64, nshock::Int64, nvar::Int64)
+function make_gykf!(gykf::Matrix{Float64}, g::Matrix{Float64}, nstate::Int64, nfwrd::Int64, nshock::Int64, fwrd_index::Vector{Int64}, order::Int64)
+    rs = 1:nstate
+    rd = 1:nstate
+    inc = (nstate + nshock + 1)
+    make_gykf_1!(gykf, g, rs, rd, n, inc, fwrd_index, order)
+end
+
+function make_rhs_2_1!(rhs1::AbstractMatrix, rhs::AbstractMatrix, os::Int64, od::Int64, n::Int64, inc::Int64, nvar::Int64, blocksize::Int64, order::Int64)
+    @inbounds if order > 1
+        os_ = os
+        od_ = od
+        inc1 = nvar*inc^(order-1)
+        n1 = nvar*n^(order-1)
+        for i= 1:n
+            make_rhs_2_1!(rhs1, rhs, os_, od_, n, inc, nvar, blocksize, order - 1)
+            os_ += inc1
+            od_ += n1
+        end
+    else
+        println(os/nvar + 1)
+        k1 = os + 1
+        k2 = od + 1
+        @simd for i = 1:blocksize
+            rhs1[k2] = -rhs1[k2] - rhs[k1]
+            k1 += 1
+            k2 += 1
+        end
+    end
+end
+
+function make_rhs_2!(rhs1::Matrix{Float64}, rhs::Matrix{Float64}, nstate::Int64,
+                     nshock::Int64, nvar::Int64, order::Int64)
+    inc = nstate + 2*nshock + 1
+    os = nvar*inc^(order-1)
+    od = 0
+    make_rhs_2_1!(rhs1, rhs, os, od, nstate + nshock, inc, nvar, nvar*(nstate + nshock), order) 
+end
+
+function make_rhs_2!(rhs1::Matrix{Float64}, rhs::Matrix{Float64}, nstate::Int64, nshock::Int64, nvar::Int64)
     dcol = 1
     inc = nstate + 2*nshock + 1
     base = nstate*inc + 1
@@ -260,12 +314,12 @@ function make_rhs1!(rhs1::Matrix{Float64}, rhs::Matrix{Float64}, nstate::Int64, 
 end
 
 """
-    function make_rhs2!(ws::KOrderWs,f,g,order)
+    function compute_derivatives_wr_shocks!(ws::KOrderWs,f,g,order)
 computes g_su and g_uu
 It solves
     (f_+*g_y + f_0)X = -(D + f_+*g_yy*(gu ⊗ [gs gu]) 
 """
-function make_rhs2!(ws::KOrderWs,f::Vector{Matrix{Float64}},g::Vector{Matrix{Float64}},order::Int64)
+function compute_derivatives_wr_shocks!(ws::KOrderWs,f::Vector{Matrix{Float64}},g::Vector{Matrix{Float64}},order::Int64)
     fp = view(f[1],:,ws.nstate + ws.ncur + (1:ws.nfwrd))
 
     make_gs_su!(ws.gs_su, g[1], ws.nstate, ws.nshock, ws.state_index)
@@ -275,7 +329,7 @@ function make_rhs2!(ws::KOrderWs,f::Vector{Matrix{Float64}},g::Vector{Matrix{Flo
     vrhs1 = view(ws.rhs1,:,1:(ws.nshock*(ws.nstate+ws.nshock)))
     a_mul_b_kron_c_d!(vrhs1,fp,ws.gykf,gu,ws.gs_su,order,ws.work1,ws.work2)
 
-    make_rhs1!(ws.rhs1, ws.rhs, ws.nstate, ws.nshock, ws.nvar)
+    make_rhs_2!(ws.rhs1, ws.rhs, ws.nstate, ws.nshock, ws.nvar)
     linsolve_core!(ws.linsolve_ws_1,Ref{UInt8}('N'),ws.a,vrhs1)
 end
     
@@ -406,15 +460,16 @@ function k_order_solution!(g,f,moments,order,ws)
         end
     end
     c = g[1][state_index,1:nstate]
-    make_rhs_1!(rhs1, nstate, nshock, nvar, rhs)
+    make_rhs_1!(rhs1, rhs, nstate, nshock, nvar, order)
 
     d = Vector{Float64}(nvar*nstate^order)
     copy!(d, 1, rhs1, 1, nvar*nstate^order)
     println("generalized_sylvester")
-    @time generalized_sylvester_solver!(a,b,c,d,order,gs_ws)
-    store_results_1!(g[2], gs_ws_result, nstate, nshock, nvar)
-    make_rhs2!(ws,f,g,order)
-    store_results_2!(g[2], nstate, nshock, nvar, rhs1)
+    generalized_sylvester_solver!(a,b,c,d,order,gs_ws)
+    println("end generalized_sylvester")
+    store_results_1!(g[order], gs_ws_result, nstate, nshock, nvar, order)
+    compute_derivatives_wr_shocks!(ws,f,g,order)
+    store_results_2!(g[order], nstate, nshock, nvar, rhs1, order)
     make_gsk!(g, f, moments[2], a, rhs, rhs1,
               nfwrd, nstate, nvar, ncur, nshock,
               fwrd_index, linsolve_ws, work1, work2)

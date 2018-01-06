@@ -1,4 +1,4 @@
-module qr_algo
+module QrAlgo
 
 import Base.LinAlg.BlasInt
 import Base.LinAlg.BLAS.@blasfunc

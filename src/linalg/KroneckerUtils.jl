@@ -1,4 +1,4 @@
-module Kronecker
+module KroneckerUtils
 
 using Base.Test
 import Base.convert
