@@ -4,7 +4,7 @@ using Base.Test
 using KroneckerUtils
 using LinSolveAlgo
 import Base.LinAlg.BLAS: gemm!
-import ..GeneralizedSylvester: EyePlusAtKronBWS, generalized_sylvester_solver!
+import SolveEyePlusMinusAkronB: EyePlusAtKronBWS, generalized_sylvester_solver!
 import ...FaaDiBruno: partial_faa_di_bruno!, FaaDiBrunoWs
 export make_gg!, make_hh!, k_order_solution!, KOrderWs
 

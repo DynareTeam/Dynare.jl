@@ -3,10 +3,10 @@ module FirstOrderSolver
 import ...model: Model, get_de, get_abc
 using QrAlgo
 using CyclicReduction
-using ..gs_solver
+using GeneralizedSchurDecompositionSolver
 import LinSolveAlgo: LinSolveWS, linsolve_core!, linsolve_core_no_lu!, lu!
-import ..Solvers: ResultsPerturbationWs
-import ..GeneralizedSylvester: EyePlusAtKronBWS, generalized_sylvester_solver!
+import Solvers: ResultsPerturbationWs
+import SolveEyePlusMinusAkronB: EyePlusAtKronBWS, generalized_sylvester_solver!
 
 import Base.LinAlg.BLAS: gemm!
 

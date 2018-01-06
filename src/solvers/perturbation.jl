@@ -1,5 +1,5 @@
-using ..DynLinAlg.linsolve_algo
-using ..Model
+using LinSolveAlgo
+using model
 
 struct ResultsPerturbationWs
     g::Array{Matrix{Float64}}  # full approximation
