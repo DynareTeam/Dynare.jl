@@ -1,10 +1,10 @@
 module KOrderSolver
 
 using Base.Test
-using KroneckerUtils
-using LinSolveAlgo
+using ...DynLinAlg.KroneckerUtils
+using ...DynLinAlg.LinSolveAlgo
 import Base.LinAlg.BLAS: gemm!
-import SolveEyePlusMinusAkronB: EyePlusAtKronBWS, generalized_sylvester_solver!
+import ...Solvers.SolveEyePlusMinusAkronB: EyePlusAtKronBWS, generalized_sylvester_solver!
 import ...FaaDiBruno: partial_faa_di_bruno!, FaaDiBrunoWs
 export make_gg!, make_hh!, k_order_solution!, KOrderWs
 

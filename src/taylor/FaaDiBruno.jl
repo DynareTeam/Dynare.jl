@@ -1,7 +1,7 @@
 module FaaDiBruno
 using Combinatorics
 import Base: start, next, done
-import Dynare.DynLinAlg.Kronecker: a_mul_kron_b!
+import ..DynLinAlg.KroneckerUtils: a_mul_kron_b!
 
 export FaaDiBrunoWs, faa_di_bruno!, partial_faa_di_bruno!
 

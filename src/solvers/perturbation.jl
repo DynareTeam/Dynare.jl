@@ -1,4 +1,4 @@
-using LinSolveAlgo
+using ..DynLinAlg.LinSolveAlgo
 using model
 
 struct ResultsPerturbationWs

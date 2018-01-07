@@ -4,10 +4,10 @@ module SolveEyePlusMinusAkronB
 # using (I - s^T ⊗ s^T ⊗ ... \otimes s^T \otimes t)x = d'
 ###
 
-using QUT
-using LinSolveAlgo
-using SchurAlgo
-using KroneckerUtils
+using ...DynLinAlg.QUT
+using ...DynLinAlg.LinSolveAlgo
+using ...DynLinAlg.SchurAlgo
+using ...DynLinAlg.KroneckerUtils
 using Base.Test
 import Base.LinAlg.BLAS: gemm!
 export EyePlusAtKronBWS, generalized_sylvester_solver!, real_eliminate!, solvi, transformation1

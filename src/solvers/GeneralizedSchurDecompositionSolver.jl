@@ -2,8 +2,8 @@ include("exceptions.jl")
 
 module GeneralizedSchurDecompositionSolver
 
-import SchurAlgo: DggesWS, dgges!
-import LinSolveAlgo: LinSolveWS, linsolve_core!
+import ...DynLinAlg.SchurAlgo: DggesWS, dgges!
+import ...DynLinAlg.LinSolveAlgo: LinSolveWS, linsolve_core!
 
 import Base.LinAlg.BLAS: scal!, gemm!
 
