@@ -1,5 +1,5 @@
 using ..DynLinAlg.LinSolveAlgo
-using model
+using Dynare.model
 
 struct ResultsPerturbationWs
     g::Array{Matrix{Float64}}  # full approximation
@@ -12,12 +12,12 @@ struct ResultsPerturbationWs
     
     function ResultsPerturbationWs(m::Model,order::Int64)
         nstate = m.n_bkwrd + m.n_both
-        g =  [Matrix{Float64}(m.endo_nbr,(m.n_bkwrd + m.n_both + m.current_exogenous_nbr + 1)^k) for k = 1:order]
-        gs = [Matrix{Float64}(m.n_bkwrd+m.n_both,(m.n_bkwrd+m.n_both)^k) for k = 1:order]
+        g =  [zeros(m.endo_nbr,(m.n_bkwrd + m.n_both + m.current_exogenous_nbr + 1)^k) for k = 1:order]
+        gs = [zeros(m.n_bkwrd+m.n_both,(m.n_bkwrd+m.n_both)^k) for k = 1:order]
         g1_1 = view(g[1],:,1:nstate)
         g1_2 = view(g[1],:,nstate + (1:m.current_exogenous_nbr))
         g1_3 = view(g[1],:,nstate + m.current_exogenous_nbr + (1:m.lagged_exogenous_nbr))
-        f1g1plusf2 = Matrix{Float64}(m.endo_nbr,m.endo_nbr)
+        f1g1plusf2 = zeros(m.endo_nbr,m.endo_nbr)
         f1g1plusf2_linsolve_ws = LinSolveWS(m.endo_nbr)
         new(g, gs, g1_1, g1_2, g1_3, f1g1plusf2, f1g1plusf2_linsolve_ws)
     end
