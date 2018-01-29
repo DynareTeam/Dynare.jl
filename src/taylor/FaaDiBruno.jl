@@ -71,7 +71,6 @@ function faa_di_bruno!(dfg::AbstractMatrix{Float64},f::Array{Matrix{Float64},1},
         for i = 1:order
             if i == 1 && g[order] != [0]
                 A_mul_B!(dfg,f[1],g[order])
-                println(dfg[1])
 #            elseif i == order
 #                a_mul_kron_b!(work1,f[i],g[1],i)
 #                dfg .+= work1
@@ -79,7 +78,6 @@ function faa_di_bruno!(dfg::AbstractMatrix{Float64},f::Array{Matrix{Float64},1},
 #                println(dfg[1])
             else
                 apply_recipees!(dfg,ws.recipees[order][i],f[i],g,order,ws)
-                println(dfg[1])
             end
         end
     end
@@ -115,9 +113,6 @@ function apply_recipees!(dfg::Matrix{Float64},recipees::tatuple,f::AbstractArray
         fill!(work1,0.0)
         fill!(ws.work2,0.0)
         a_mul_kron_b!(work1,f,g[recipees1],ws.work2)
-        println("apply_recipees!.work1")
-        println(work1[1])
-        println(recipees1)
         a = reshape(work1, dims)
         d = reshape(dfg, dims)
         p = length(recipees2)
@@ -127,11 +122,7 @@ function apply_recipees!(dfg::Matrix{Float64},recipees::tatuple,f::AbstractArray
             dims1 = (1,recipees2[j]+1...)
             matrixvector[j] = PermutedDimsArray(a,dims1)
         end
-        println("dfg[1]")
-        println(dfg[1])
-        println([x[1] for x in matrixvector]) 
         add!(d,matrixvector)
-        println(dfg[1])
     end
 end
 

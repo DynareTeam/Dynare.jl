@@ -63,12 +63,7 @@ function generalized_sylvester_solver!(a::AbstractMatrix,b::AbstractMatrix,c::Ab
     A_mul_B!(ws.s2,s,s)
     at_mul_b_kron_c!(ws.result, ws.dgees_ws_b.vs, d1, ws.dgees_ws_c.vs, order, ws.work2, ws.work3)
     copy!(d,ws.result)
-    if any(isnan.(d))
-        println("d")
-    end
-    println("timing solve1")
     solve1!(1.0, order, t, ws.t2, s, ws.s2, d, ws)
-    println("end solve1")
     a_mul_b_kron_ct!(ws.result, ws.dgees_ws_b.vs, d1, ws.dgees_ws_c.vs, order, ws.work2, ws.work3)
     copy!(d,ws.result)
 end

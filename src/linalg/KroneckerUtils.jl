@@ -278,12 +278,12 @@ function a_mul_b_kron_c_d!(e::AbstractMatrix, a::AbstractMatrix, b::AbstractMatr
      p = mc*md^(order - 2)
      q = ma
      for i = 0:order - 2
-        @time kron_mul_elem_t!(work2, 1, d, work1, 1, p, q)
+        kron_mul_elem_t!(work2, 1, d, work1, 1, p, q)
         copy!(work1,work2)
         p = Int(p/md)
         q *= nd
     end
-    @time kron_mul_elem_t!(work2, c, work1, 1,q)
+    kron_mul_elem_t!(work2, c, work1, 1,q)
     copy!(e, 1, work2, 1, ma*nc*nd^(order-1))
 end
 
