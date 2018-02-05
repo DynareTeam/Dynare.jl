@@ -1,6 +1,7 @@
 module KroneckerUtils
 
 using Base.Test
+using ExtendedMul
 import Base.convert
 export a_mul_kron_b!, a_mul_b_kron_c!, kron_at_kron_b_mul_c!, a_mul_b_kron_c_d!, at_mul_b_kron_c!, a_mul_b_kron_ct!
 import Base.LinAlg: A_mul_B!, At_mul_B!, A_mul_Bt!, At_mul_Bt
@@ -198,11 +199,17 @@ function at_mul_b_kron_c!(d::AbstractMatrix, a::AbstractMatrix, b::AbstractMatri
     mb, nb = size(b)
     mc, nc = size(c)
     if mc <= nc
-        At_mul_B!(work1, 1, a, 1, ma, na, b, 1, nb)
-        kron_at_mul_b!(vec(d), c, order, work1, na, work1, work2)
+        At_mul_B!(work1, 1, a, 1, na, ma, b, 1, nb)
+        display(a)
+        println(' ')
+        display(b)
+        println(' ')
+        display(reshape(work1[1:na*nb],na,nb))
+        println(' ')
+        kron_at_mul_b!(vec(d), c, order, work1, na, vec(d), work2)
     else
         kron_at_mul_b!(work1, c, order, b, na, work1, work2)
-        At_mul_B!(vec(d), 1, a, 1, ma, na, work1, 1, nc^order)
+        At_mul_B!(vec(d), 1, a, 1, na, ma, work1, 1, nc^order)
     end
 end
                       
@@ -373,100 +380,4 @@ function kron_mul_elem_t!(c::Vector, a::AbstractMatrix, b::Vector, p::Int64, q::
     kron_mul_elem_t!(c, 1, a, b, 1, p, q)
 end
 
-import Base.LinAlg: BlasInt, BlasFloat
-import Base.LinAlg.BLAS: @blasfunc, libblas
-
-function A_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::VecOrMat{Float64},
-                  offset_a::Int64, ma::Int64, na::Int64, b::VecOrMat{Float64},
-                  offset_b::Int64, nb::Int64)
-
-    gemm!('N', 'N', 1.0, Ref(a, offset_a), ma, na, Ref(b, offset_b),
-          nb, 0.0, Ref(c, offset_c))
-end
-
-function A_mul_B!(c::Array{Float64,1}, offset_c::Int64, a::SubArray{Float64,2,Array{Float64,2},Tuple{Base.Slice{Base.OneTo{Int64}},UnitRange{Int64}},true}, offset_a::Int64, ma::Int64, na::Int64, b::Array{Float64,1}, offset_b::Int64, nb::Int64)
-    ref_a = Ref(a, offset_a)
-    ref_b = Ref(b, offset_b)
-    ref_c = Ref(c, offset_c)
-    lda = max(1,size(a.parent,1))
-    ccall((@blasfunc(dgemm_), libblas), Void,
-          (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
-           Ref{BlasInt}, Ref{Float64}, Ptr{Float64}, Ref{BlasInt},
-           Ptr{Float64}, Ref{BlasInt}, Ref{Float64}, Ptr{Float64},
-           Ref{BlasInt}),
-          'N', 'N', ma, nb,
-          na, 1.0, ref_a, lda,
-          ref_b, na, 0.0, ref_c,
-          ma)
-end
-
-function A_mul_B!(c::Array{Float64,1}, offset_c::Int64, a::Array{Float64,1}, offset_a::Int64, ma::Int64, na::Int64, b::SubArray{Float64,2,Array{Float64,2},Tuple{Base.Slice{Base.OneTo{Int64}},UnitRange{Int64}},true}, offset_b::Int64, nb::Int64)
-    ccall((@blasfunc(dgemm_), libblas), Void,
-          (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
-           Ref{BlasInt}, Ref{Float64}, Ptr{Float64}, Ref{BlasInt},
-           Ptr{Float64}, Ref{BlasInt}, Ref{Float64}, Ptr{Float64},
-           Ref{BlasInt}),
-          'N', 'N', ma, nb,
-          na, 1.0, Ref(a, offset_a), max(1,ma),
-          Ref(b, offset_b), max(1,size(b.parent,1)), 0.0, Ref(c, offset_c),
-          max(1,ma))
-end
-
-function At_mul_B!(c::VecOrMat{Float64}, offset_c::Int64, a::VecOrMat{Float64},
-                  offset_a::Int64, ma::Int64, na::Int64, b::VecOrMat{Float64},
-                  offset_b::Int64, nb::Int64)
-    ccall((@blasfunc(dgemm_), libblas), Void,
-          (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
-           Ref{BlasInt}, Ref{Float64}, Ptr{Float64}, Ref{BlasInt},
-           Ptr{Float64}, Ref{BlasInt}, Ref{Float64}, Ptr{Float64},
-           Ref{BlasInt}),
-          'T', 'N', na, nb,
-          ma, 1.0, a, max(1,na),
-          b, max(1,ma), 0.0, c,
-          max(1,na))
-end
-
-function A_mul_Bt!(c::VecOrMat{Float64}, offset_c::Int64, a::VecOrMat{Float64},
-                  offset_a::Int64, ma::Int64, na::Int64, b::VecOrMat{Float64},
-                  offset_b::Int64, nb::Int64)
-    gemm_t!('N', 'T', 1.0, Ref(a, offset_a), ma, na, Ref(b, offset_b),
-          nb, 0.0, Ref(c, offset_c))
-end
-
-function At_mul_Bt!(c::VecOrMat{Float64}, offset_c::Int64, a::VecOrMat{Float64},
-                  offset_a::Int64, ma::Int64, na::Int64, b::VecOrMat{Float64},
-                  offset_b::Int64, nb::Int64)
-    gemm!('T', 'T', 1.0, Ref(a, offset_a), ma, na, Ref(b, offset_b),
-          nb, 0.0, Ref(c, offset_c))
-end
-
-function gemm!(ta::Char, tb::Char, alpha::Float64, a::Union{Ref{Float64},VecOrMat{Float64}},
-               ma::Int64, na::Int64, b::Union{Ref{Float64},VecOrMat{Float64}}, nb::Int64,
-               beta::Float64, c::Union{Ref{Float64},VecOrMat{Float64}})
-    ccall((@blasfunc(dgemm_), libblas), Void,
-          (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
-           Ref{BlasInt}, Ref{Float64}, Ptr{Float64}, Ref{BlasInt},
-           Ptr{Float64}, Ref{BlasInt}, Ref{Float64}, Ptr{Float64},
-           Ref{BlasInt}),
-          ta, tb, ma, nb,
-          na, alpha, a, max(1,ma),
-          b, max(1,na), beta, c,
-          max(1,ma))
-end
-
-function gemm_t!(ta::Char, tb::Char, alpha::Float64, a::Union{Ref{Float64},VecOrMat{Float64}},
-               ma::Int64, na::Int64, b::Union{Ref{Float64},VecOrMat{Float64}}, nb::Int64,
-               beta::Float64, c::Union{Ref{Float64},VecOrMat{Float64}})
-    ccall((@blasfunc(dgemm_), libblas), Void,
-          (Ref{UInt8}, Ref{UInt8}, Ref{BlasInt}, Ref{BlasInt},
-           Ref{BlasInt}, Ref{Float64}, Ptr{Float64}, Ref{BlasInt},
-           Ptr{Float64}, Ref{BlasInt}, Ref{Float64}, Ptr{Float64},
-           Ref{BlasInt}),
-          ta, tb, ma, nb,
-          na, alpha, a, max(1,ma),
-          b, max(1,nb), beta, c,
-          max(1,ma))
-end
-
-                      
 end
