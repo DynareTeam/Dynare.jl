@@ -112,7 +112,7 @@ function simulate_perfect_foresight_model!(endogenousvariables::Matrix{Float64},
                 i_cols_A += ny
             end
         end
-        err = maximum(abs(rd))
+        err = maximum(abs.(rd))
         println("Iter. ", iteration, "\t err. ", round(err, 12))
         if err<options.pfmsolver.tolf
             iteration -= 1
@@ -121,7 +121,7 @@ function simulate_perfect_foresight_model!(endogenousvariables::Matrix{Float64},
         A = sparse(iA[1:m], jA[1:m], vA[1:m])
         dy = -A\rd
         Y[i_upd] += dy
-        if maximum(abs(dy))<options.pfmsolver.tolx
+        if maximum(abs.(dy))<options.pfmsolver.tolx
             convergence = true
         end
     end

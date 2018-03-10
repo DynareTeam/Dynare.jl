@@ -1,6 +1,6 @@
 module DynareModel
 ##
- # Copyright (C) 2015 Dynare Team
+ # Copyright (C) 2015-2018 Dynare Team
  #
  # This file is part of Dynare.
  #
@@ -20,7 +20,7 @@ module DynareModel
 
 export Model, Endo, Exo, ExoDet, Param, dynare_model
 
-abstract Atom
+abstract type Atom end
 
 immutable Endo <: Atom
     name::String
@@ -88,6 +88,7 @@ type Model
     aux_vars::Vector{AuxVars}
     pred_vars::Vector{Int}
     obs_vars::Vector{Int}
+    state_var::Vector{Int}
     orig_endo_nbr::Int
     orig_eq_nbr::Int
     eq_nbr::Int
@@ -106,6 +107,14 @@ type Model
     maximum_endo_lead::Int
     maximum_exo_lag::Int
     maximum_exo_lead::Int
+    orig_maximum_lag::Int
+    orig_maximum_lead::Int
+    orig_maximum_endo_lag::Int
+    orig_maximum_endo_lead::Int
+    orig_maximum_exo_lag::Int
+    orig_maximum_exo_lead::Int
+    orig_maximum_exo_det_lag::Int
+    orig_maximum_exo_det_lead::Int
     lead_lag_incidence::Matrix{Int}
     nnzderivatives::Vector{Int}
     analytical_steady_state::Bool
@@ -130,18 +139,19 @@ function dynare_model()
     return Model("",                    # fname
                  "",                    # dname
                  "",                    # dynare_version
-                 Array(Endo,0),         # endo
-                 Array(Exo,0),          # exo
-                 Array(ExoDet,0),       # exo_det
-                 Array(Param,0),        # param
-                 Array(AuxVars,0),      # aux_vars
-                 Array(Int,0),          # pred_vars
-                 Array(Int,0),          # obs_vars
+                 Vector{Endo}(),        # endo
+                 Vector{Exo}(),         # exo
+                 Vector{ExoDet}(),      # exo_det
+                 Vector{Param}(),       # param
+                 Vector{AuxVars}(),     # aux_vars
+                 Vector{Int}(),         # pred_vars
+                 Vector{Int}(),         # obs_vars
+                 Vector{Int}(),         # state_var
                  0,                     # orig_endo_nbr
                  0,                     # orig_eq_nbr
                  0,                     # eq_nbr
                  0,                     # ramsey_eq_nbr
-                 Array(DetShocks,0),    # det_shocks
+                 Vector{DetShocks}(),   # det_shocks
                  0,                     # nstatic
                  0,                     # nfwrd
                  0,                     # npred
@@ -155,19 +165,27 @@ function dynare_model()
                  0,                     # maximum_endo_lead
                  0,                     # maximum_exo_lag
                  0,                     # maximum_exo_lead
-                 Array(Int, 3, 0),      # lead_lag_incidence
-                 zeros(Int, 3),         # nnzderivatives
+                 0,                     # orig_maximum_lag
+                 0,                     # orig_maximum_lead
+                 0,                     # orig_maximum_endo_lag
+                 0,                     # orig_maximum_endo_lead
+                 0,                     # orig_maximum_exo_lag
+                 0,                     # orig_maximum_exo_lead
+                 0,                     # orig_maximum_exo_det_lag
+                 0,                     # orig_maximum_exo_det_lead
+                 Matrix{Int}(0,0),         # lead_lag_incidence
+                 zeros(Int64,3),         # nnzderivatives
                  false,                 # analytical_steady_state
                  false,                 # user_written_analytical_steady_state
                  false,                 # static_and_dynamic_models_differ
-                 Array(String,0),       # equation_tags
-                 Array(Int64,1),        # exo_names_orig_ord
-                 Array(Float64, 0, 0),  # sigma_e (Cov matrix of the structural innovations)
-                 Array(Float64, 0, 0),  # correlation_matrix (Corr matrix of the structural innovations)
-                 Array(Float64, 0, 0),  # h (Cov matrix of the measurement errors)
-                 Array(Float64, 0, 0),  # correlation_matrix_me (Cov matrix of the measurement errors)
+                 Vector{String}(),      # equation_tags
+                 Vector{Int}(),         # exo_names_orig_ord
+                 Matrix{Float64}(0,0),     # sigma_e (Cov matrix of the structural innovations)
+                 Matrix{Float64}(0,0),     # correlation_matrix (Corr matrix of the structural innovations)
+                 Matrix{Float64}(0,0),     # h (Cov matrix of the measurement errors)
+                 Matrix{Float64}(0,0),     # correlation_matrix_me (Cov matrix of the measurement errors)
                  true,                  # sigma_e_is_diagonal
-                 Array(Float64, 0),     # params
+                 Vector{Float64}(),     # params
                  function()end,         # static
                  function()end,         # static_params_derivs
                  function()end,         # dynamic

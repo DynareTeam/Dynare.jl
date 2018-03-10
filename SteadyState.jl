@@ -47,22 +47,26 @@ function steady!(model::Model, oo::Output)
 end
 
 function steady(model::Model, oo::Output, yinit::Vector{Float64})
-    ojectivefunction!(y::Vector{Float64}, fval::Vector{Float64}, fjac::Array{Float64}) = model.static(y, oo.exo_steady_state, model.params, fval, fjac)
-    r = nlsolve(only_fg!(ojectivefunction!), yinit, show_trace=false)
+    f!(fval::Vector{Float64}, y::Vector{Float64}) = model.static(y, oo.exo_steady_state, model.params, fval)
+    j!(fjac::Matrix{Float64}, y::Vector{Float64}) = model.static(y, oo.exo_steady_state, model.params, fjac)
+    fj!(fval::Vector{Float64}, fjac::Matrix{Float64}, y::Vector{Float64}) = model.static(y, oo.exo_steady_state, model.params, fval, fjac)
+    r = nlsolve(f!, j!, fj!, yinit, show_trace=false)
     if converged(r)
         return r.zero
     else
-        return fill(nan(Float64), length(yinit))
+        return fill(NaN, length(yinit))
     end
 end
 
 function steady!(model::Model, oo::Output, yinit::Vector{Float64})
-    ojectivefunction!(y::Vector{Float64}, fval::Vector{Float64}, fjac::Array{Float64}) = model.static(y, oo.exo_steady_state, model.params, fval, fjac)
-    r = nlsolve(only_fg!(ojectivefunction!), yinit, show_trace=false)
+    f!(fval::Vector{Float64}, y::Vector{Float64}) = model.static(y, oo.exo_steady_state, model.params, fval)
+    j!(fjac::Matrix{Float64}, y::Vector{Float64}) = model.static(y, oo.exo_steady_state, model.params, fjac)
+    fj!(fval::Vector{Float64}, fjac::Matrix{Float64}, y::Vector{Float64}) = model.static(y, oo.exo_steady_state, model.params, fval, fjac)
+    r = nlsolve(f!, j!, fj!, yinit, show_trace=false)
     if converged(r)
         oo.steady_state = r.zero
     else
-        oo.steady_state = fill(nan(Float64), length(yinit))
+        oo.steady_state = fill(NaN, length(yinit))
     end
 end
 

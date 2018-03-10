@@ -1,6 +1,6 @@
 module DynareOutput
 ##
- # Copyright (C) 2015 Dynare Team
+ # Copyright (C) 2015-2018 Dynare Team
  #
  # This file is part of Dynare.
  #
@@ -28,8 +28,8 @@ end
 
 function dynare_output()
     return Output("",                # dynare_version
-                  Array(Float64, 0), # steady_state
-                  Array(Float64, 0)  # exo_steady_state
+                  Vector{Float64}(), # steady_state
+                  Vector{Float64}()  # exo_steady_state
                  )
 end
 
