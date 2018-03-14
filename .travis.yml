@@ -1,10 +1,19 @@
 language: julia
+
 julia:
   - 0.6
+
 os:
   - linux
+
+branches:
+  only:
+    - master
+    - v0.1.0
+
 notifications:
   email: false
+
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.test("Dynare")'
