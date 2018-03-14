@@ -1,2 +1,5 @@
 *~
 .juliahistory
+
+deps/deps.jl
+deps/usr/*
