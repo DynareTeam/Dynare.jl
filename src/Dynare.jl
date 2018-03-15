@@ -1,7 +1,7 @@
 module Dynare
 
 ##
- # Copyright (C) 2015-2016 Dynare Team
+ # Copyright (C) 2015-2018 Dynare Team
  #
  # This file is part of Dynare.
  #
@@ -19,17 +19,24 @@ module Dynare
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
+# Check that the preprocessor is here where it should be...
+const depsjlpath = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
+
+if !isfile(depsjlpath)
+    error("Dynare's preprocessor not installed properly, run Pkg.build(\"Dynare\"), restart Julia and try again.")
+else
+    include(depsjlpath)
+end
+
 export @compile, @dynare
 
 function compile(modfile)
-    # Add cd to path if not already there
+    # Add current path to LOAD_PATH if necessary.
     if isempty(findin([pwd()], LOAD_PATH))
         unshift!(LOAD_PATH, pwd())
     end
-    # Process modfile
-    println(string("Using ", Sys.WORD_SIZE, "-bit preprocessor"))
-    preprocessor = string(dirname(@__FILE__()), "/preprocessor", Sys.WORD_SIZE, "/dynare_m")
-    run(`$preprocessor $modfile language=julia output=dynamic`)
+    # Call the preprocessor.
+    run(`$dynare $modfile language=julia output=dynamic`)
 end
 
 macro dynare(modfiles...)
