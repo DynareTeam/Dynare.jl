@@ -19,18 +19,17 @@
 ** along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 =#
 
-    
-# Put Dynare's sources in the path
-if isempty(findin([abspath("../../src")], LOAD_PATH))
-    unshift!(LOAD_PATH, abspath("../../src"))
+rootdir = @__DIR__
+origdir = pwd()
+
+if isempty(findin([abspath("$(rootdir)/../../src")], LOAD_PATH))
+    unshift!(LOAD_PATH, abspath("$(rootdir)/../../src"))
 end
 
 using Base.Test
 using Dynare
 using DynareUnitTests
 
-rootdir = @__DIR__
-origdir = pwd()
 
 cd("$(rootdir)")
 
