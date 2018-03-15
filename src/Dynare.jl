@@ -36,7 +36,7 @@ function compile(modfile)
         unshift!(LOAD_PATH, pwd())
     end
     # Call the preprocessor.
-    run(`$dynare $modfile language=julia output=dynamic`)
+    run(`$dynare $modfile language=julia output=dynamic nopreprocessoroutput`)
 end
 
 macro dynare(modfiles...)
