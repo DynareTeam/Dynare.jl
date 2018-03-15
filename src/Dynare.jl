@@ -69,8 +69,21 @@ macro dynare(modfiles...)
 end
 
 macro compile(modfiles...)
-    for modfile in modfiles
-        eval(:(compile($modfile)))
+    try
+        for modfile in modfiles
+            eval(:(compile($modfile)))
+        end
+        return true
+    catch
+        return false
+    end
+end
+
+function isdynarext(ext::String)
+    if ext==".mod" || ext==".dyn"
+        return true
+    else
+        return false
     end
 end
 
