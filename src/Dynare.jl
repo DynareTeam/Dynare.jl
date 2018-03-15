@@ -30,13 +30,26 @@ end
 
 export @compile, @dynare
 
-function compile(modfile)
+function compile(modfile::AbstractString)
     # Add current path to LOAD_PATH if necessary.
     if isempty(findin([pwd()], LOAD_PATH))
         unshift!(LOAD_PATH, pwd())
     end
+    # Append extension if necessary and check extension.
+    basename, ext = splitext(modfile)
+    if isempty(ext)
+        modfile = "$modfile.mod"
+    else
+        if ~isdynarext(ext)
+            error("The Dynare model file must have a mod or dyn extension!")
+        end
+    end
     # Call the preprocessor.
     run(`$dynare $modfile language=julia output=dynamic nopreprocessoroutput`)
+end
+
+function compile(modfile::Symbol)
+    return compile(convert(String, modfile))
 end
 
 macro dynare(modfiles...)
