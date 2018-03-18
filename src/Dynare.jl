@@ -40,16 +40,12 @@ function compile(modfile::AbstractString)
     if isempty(ext)
         modfile = "$modfile.mod"
     else
-        if ~isdynarext(ext)
+        if ~isdynarefile(ext)
             error("The Dynare model file must have a mod or dyn extension!")
         end
     end
     # Call the preprocessor.
     run(`$dynare $modfile language=julia output=dynamic nopreprocessoroutput`)
-end
-
-function compile(modfile::Symbol)
-    return compile(convert(String, modfile))
 end
 
 macro dynare(modfiles...)
@@ -68,18 +64,30 @@ macro dynare(modfiles...)
     return ex
 end
 
-macro compile(modfiles...)
-    try
-        for modfile in modfiles
-            eval(:(compile($modfile)))
+macro compile(modfiles::Expr)
+    if modfiles.head==:vect
+        try
+            for i=1:length(modfiles.args)
+                compile(modfiles.args[i])
+            end
+            return true
+        catch
+            return false
         end
+    end
+end
+
+macro compile(modfile::AbstractString)
+    try
+        eval(:(compile($modfile)))
         return true
     catch
         return false
     end
 end
 
-function isdynarext(ext::String)
+
+function isdynarefile(ext::String)
     if ext==".mod" || ext==".dyn"
         return true
     else
