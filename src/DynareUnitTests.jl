@@ -19,6 +19,8 @@ module DynareUnitTests
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
+export @trycommand
+
 function clean(basename::String)
     rm(basename; force=true, recursive=true)
     rm("$(basename).jl"; force=true)

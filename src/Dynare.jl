@@ -66,26 +66,16 @@ end
 
 macro compile(modfiles::Expr)
     if modfiles.head==:vect
-        try
-            for i=1:length(modfiles.args)
-                compile(modfiles.args[i])
-            end
-            return true
-        catch
-            return false
+        for i=1:length(modfiles.args)
+            compile(modfiles.args[i])
         end
     end
 end
 
 macro compile(modfile::AbstractString)
-    try
-        eval(:(compile($modfile)))
-        return true
-    catch
-        return false
-    end
+    #return :(compile($modfile))
+    compile(modfile)
 end
-
 
 function isdynarefile(ext::String)
     if ext==".mod" || ext==".dyn"

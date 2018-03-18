@@ -40,7 +40,14 @@ cp("rbc2.mod", "rbc24.mod"; remove_destination=true)
 @testset "test preprocessor-1" begin
     # Use @compile macro to compile one mod file, passing a string (name with extension).
     @testset "Test preprocessor-1-1" begin
-        @test @compile "rbc11.mod"
+        @test begin
+            try
+                @compile "rbc11.mod"
+                true
+            catch
+                false
+            end
+        end
         @test Base.isfile("rbc11.jl")
         @test isfile("rbc11Dynamic.jl")
         @test isfile("rbc11Static.jl")
@@ -50,7 +57,14 @@ cp("rbc2.mod", "rbc24.mod"; remove_destination=true)
     rm("rbc11.mod")
     # Use @compile macro to compile one mod file, passing a string (name without extension).
     @testset "Test preprocessor-1-2" begin
-        @test @compile "rbc12"
+        @test begin
+            try
+                @compile "rbc12.mod"
+                true
+            catch
+                false
+            end
+        end
         @test isfile("rbc12.jl")
         @test isfile("rbc12Dynamic.jl")
         @test isfile("rbc12Static.jl")
@@ -68,7 +82,14 @@ cp("rbc2.mod", "rbc24.mod"; remove_destination=true)
     end
     # Use @compile macro to compile two mod files, passing strings (names with extensions).
     @testset "Test preprocessor-1-4" begin
-        @test @compile ["rbc14.mod", "rbc24.mod"]
+        @test begin
+            try
+                @compile ["rbc14.mod", "rbc24.mod"]
+                true
+            catch
+                false
+            end
+        end
         @test isfile("rbc14.jl")
         @test isfile("rbc24.jl")
         @test isfile("rbc14Dynamic.jl")
