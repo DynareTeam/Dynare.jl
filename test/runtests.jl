@@ -4,11 +4,13 @@ if isempty(findin([abspath("../src")], LOAD_PATH))
 end
 
 # Get current directory.
-rootdir = @__DIR__
+rootdir0 = @__DIR__
 
 using Base.Test
 
 # Run tests
 @testset "Dynare.jl testsuite" begin
-    include("$(rootdir)/preprocessor/test-1.jl")
+    include("$(rootdir0)/preprocessor/test-1.jl")
+    include("$(rootdir0)/preprocessor/test-2.jl")
+    include("$(rootdir0)/preprocessor/test-3.jl")
 end

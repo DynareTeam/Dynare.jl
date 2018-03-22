@@ -59,7 +59,7 @@ cp("rbc2.mod", "rbc24.mod"; remove_destination=true)
     @testset "Test preprocessor-1-2" begin
         @test begin
             try
-                @compile "rbc12.mod"
+                @compile "rbc12"
                 true
             catch
                 false
@@ -74,7 +74,14 @@ cp("rbc2.mod", "rbc24.mod"; remove_destination=true)
     rm("rbc12.mod")
     # Use compile function to compile one mod file, passing a string (name with a wrong extension, this should fail).
     @testset "Test preprocessor-1-3" begin
-        @test_throws Core.ErrorException Dynare.compile("rbc3.zut")
+        @test begin
+            try
+                Dynare.compile("rbc3.zut")
+                false
+            catch
+                true
+            end
+        end
         @test ~isfile("rbc3.jl")
         @test ~isfile("rbc3Dynamic.jl")
         @test ~isfile("rbc3Static.jl")
