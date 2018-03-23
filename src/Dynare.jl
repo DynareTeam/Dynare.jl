@@ -121,7 +121,7 @@ end
 
 
 """
-    @PreprocessorOptions!(args...)
+    @PreprocessorOptions(args...)
 
 Sets the preprocessor options (described in the reference manual). If the value of the specified option is not true, the option must be set with a pair (option name and option value).
 
@@ -154,6 +154,22 @@ macro PreprocessorOptions(args...)
         end
         opts
     end
+end
+
+function SetPreprocessorOptions(args::Expr...)::PreprocessorOptions
+    n, i = length(args), 1
+    opts = PreprocessorOptions()
+    while i<=n
+        @assert isa(eval(args[i]), Symbol) "Argument $(string(i)) has to be a Symbol (preprocessor option name)!"
+        if i==n || isa(eval(args[i+1]), Symbol)
+            PreprocessorOptions!(opts, eval(args[i]), true)
+            i+=1
+        else
+            PreprocessorOptions!(opts, eval(args[i]), eval(args[i+1]))
+            i+=2
+        end
+    end
+    return opts
 end
 
 """
@@ -290,31 +306,60 @@ macro dynare(modfiles...)
 end
 
 """
-    compile(modfiles::Expr, options::Expr)
+    compile(modfiles::Expr, opts...)
 
-Compiles a set of mod files (`modfile` is a vector of strings for the names of the mod files) with default options set with @PreprocessorOptions macro.
+Compiles a set of mod files (`modfile` is a vector of strings for the names of the mod files) with options defined in opts.
+
+# Examples
+```julia-repl
+julia> @compile ["test1.mod", "test2.mod"] :nograph :savemacro
+```
+Compiles `test1.mod` and `test2.mod`  with options `nograph` and `savemacro` set to true (default is false).
+
+```julia-repl
+julia> options = @compile ["test1.mod", "test2.mod"] :nograph :language "c++" :params_derivs_order 1
+```
+Compiles `test1.mod` and `test2.mod` and sets option `nograph` to true `language` to "c++" (*ie* generates c++ routines instead of julia routines for the model) and `params_derivs_order` to 1 (the preprocessor computes the first order derivates with respect to the parameters).
 """
-macro compile(modfiles::Expr, options::Expr)
-    if modfiles.head==:vect && options.head==:macrocall
+macro compile(modfiles::Expr, opts...)
+    options = SetPreprocessorOptions(opts...)
+    if modfiles.head==:vect
         for i=1:length(modfiles.args)
-            compile(modfiles.args[i], eval(options))
+            compile(modfiles.args[i], options)
         end
     end
 end
 
 """
-    compile(modfiles::AbstractString, options::Expr)
+    compile(modfile::AbstractString, opts...)
 
-Compiles a mod file (`modfile` is a string for the name of the mod files with or without extension), options are set with the @PreprocessorOptions macro.
+Compiles a mod file (`modfile` is a string for the name of the mod files with or without extension),  with options defined in opts.
+
+# Examples
+```julia-repl
+julia> @compile "test1.mod" :nograph :savemacro
+```
+Compiles `test1.mod` with options `nograph` and `savemacro` set to true (default is false).
+
+```julia-repl
+julia> options = @compile "test1" :nograph :language "c++" :params_derivs_order 1
+```
+Compiles `test1.mod` and sets option `nograph` to true `language` to "c++" (*ie* generates c++ routines instead of julia routines for the model) and `params_derivs_order` to 1 (the preprocessor computes the first order derivates with respect to the parameters).
 """
-macro compile(modfile::AbstractString, options::Expr)
-    compile(modfile, eval(options))
+macro compile(modfile::AbstractString, opts...)
+    return compile(modfile, SetPreprocessorOptions(opts...))
 end
 
 """
-    compile(modfiles::AbstractString)
+    compile(modfiles::Expr)
 
-Compiles a set of mod files (`modfile` is a vector of strings for the names of the mod files with or without extensions), default options are used.
+Compiles a set of mod files (`modfiles` is a vector of strings for the names of the mod files with or without extensions), default options are used.
+
+# Examples
+```julia-repl
+julia> @compile ["test1.mod" "test2.mod"]
+```
+Compiles `test1.mod` and `test2.mod` with default options.
 """
 macro compile(modfiles::Expr)
     options = PreprocessorOptions()
@@ -326,15 +371,25 @@ macro compile(modfiles::Expr)
 end
 
 """
-    compile(modfiles::AbstractString)
+    compile(modfile::AbstractString)
 
 Compiles a mod file (`modfile` is a string for the name of the mod files with or without extension), default options are used.
+
+```julia-repl
+julia> options = @compile "test1"
+```
+Compiles `test1.mod` with default options..
 """
 macro compile(modfile::AbstractString)
     options = PreprocessorOptions()
     compile(modfile, options)
 end
 
+"""
+    isdynarefile(ext::String)
+
+Returns true if and only if ext is equal to "mod" or "dyn".
+"""
 function isdynarefile(ext::String)
     if ext==".mod" || ext==".dyn"
         return true

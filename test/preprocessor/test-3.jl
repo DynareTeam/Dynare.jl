@@ -42,7 +42,7 @@ cp("rbc2.mod", "rbc24_3.mod"; remove_destination=true)
     @testset "Test preprocessor-3-1" begin
         @test begin
             try
-                @compile "rbc11_3.mod" @PreprocessorOptions :savemacro :nograph
+                @compile "rbc11_3.mod" :savemacro :nograph
                 true
             catch
                 false
@@ -61,7 +61,7 @@ cp("rbc2.mod", "rbc24_3.mod"; remove_destination=true)
     @testset "Test preprocessor-3-2" begin
         @test begin
             try
-                @compile "rbc12_3" @PreprocessorOptions :nograph :savemacro
+                @compile "rbc12_3" :nograph :savemacro
                 true
             catch
                 false
@@ -80,7 +80,7 @@ cp("rbc2.mod", "rbc24_3.mod"; remove_destination=true)
     @testset "Test preprocessor-1-4" begin
         @test begin
             try
-                @compile ["rbc14_3.mod", "rbc24_3.mod"] @PreprocessorOptions :nograph :savemacro
+                @compile ["rbc14_3.mod", "rbc24_3.mod"] :nograph :savemacro
                 true
             catch
                 false
