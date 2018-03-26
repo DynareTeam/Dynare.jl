@@ -36,6 +36,7 @@ cp("rbc1.mod", "rbc11_3.mod"; remove_destination=true)
 cp("rbc1.mod", "rbc12_3.mod"; remove_destination=true)
 cp("rbc1.mod", "rbc14_3.mod"; remove_destination=true)
 cp("rbc2.mod", "rbc24_3.mod"; remove_destination=true)
+cp("rbc1.mod", "rbc15_3.mod"; remove_destination=true)
 
 @testset "test preprocessor-3" begin
     # Use @compile macro to compile one mod file, passing a string (name with extension).
@@ -77,7 +78,7 @@ cp("rbc2.mod", "rbc24_3.mod"; remove_destination=true)
     rm("rbc12_3.mod")
     rm("rbc12_3-macroexp.mod")
     # Use @compile macro to compile two mod files, passing strings (names with extensions).
-    @testset "Test preprocessor-1-4" begin
+    @testset "Test preprocessor-3-4" begin
         @test begin
             try
                 @compile ["rbc14_3.mod", "rbc24_3.mod"] :nograph :savemacro
@@ -102,6 +103,35 @@ cp("rbc2.mod", "rbc24_3.mod"; remove_destination=true)
     rm("rbc24_3.mod")
     rm("rbc14_3-macroexp.mod")
     rm("rbc24_3-macroexp.mod")
+    # Use @compile macro to compile one mod file, passing a string (name with extension).
+    @testset "Test preprocessor-3-5" begin
+        @test begin
+            try
+                @compile "rbc15_3.mod" :savemacro :nograph :json "compute"
+                true
+            catch
+                false
+            end
+        end
+        @test isfile("rbc15_3.jl")
+        @test isfile("rbc15_3Dynamic.jl")
+        @test isfile("rbc15_3Static.jl")
+        @test isfile("rbc15_3SteadyState2.jl")
+        @test isfile("rbc15_3-macroexp.mod")
+        @test isfile("rbc15_3.json")
+        @test isfile("rbc15_3_dynamic.json")
+        @test isfile("rbc15_3_original.json")
+        @test isfile("rbc15_3_static.json")
+        @test isfile("rbc15_3_steady_state_model.json")
+    end
+    DynareUnitTests.clean("rbc15_3")
+    rm("rbc15_3.mod")
+    rm("rbc15_3-macroexp.mod")
+    rm("rbc15_3.json")
+    rm("rbc15_3_original.json")
+    rm("rbc15_3_dynamic.json")
+    rm("rbc15_3_static.json")
+    rm("rbc15_3_steady_state_model.json")
 end
 
 cd(origdir)
