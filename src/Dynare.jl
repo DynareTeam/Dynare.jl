@@ -156,7 +156,7 @@ macro PreprocessorOptions(args...)
     end
 end
 
-function SetPreprocessorOptions(args::Expr...)::PreprocessorOptions
+function SetPreprocessorOptions(args...)::PreprocessorOptions
     n, i = length(args), 1
     opts = PreprocessorOptions()
     while i<=n
