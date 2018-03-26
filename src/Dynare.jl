@@ -28,7 +28,7 @@ else
     include(depsjlpath)
 end
 
-export @compile, @dynare, @PreprocessorOptions
+export @compile, @dynare
 
 type PreprocessorOptions
     debug::Bool
