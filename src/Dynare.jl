@@ -317,7 +317,7 @@ julia> @compile ["test1.mod", "test2.mod"] :nograph :savemacro
 Compiles `test1.mod` and `test2.mod`  with options `nograph` and `savemacro` set to true (default is false).
 
 ```julia-repl
-julia> options = @compile ["test1.mod", "test2.mod"] :nograph :language "c++" :params_derivs_order 1
+julia> @compile ["test1.mod", "test2.mod"] :nograph :language "c++" :params_derivs_order 1
 ```
 Compiles `test1.mod` and `test2.mod` and sets option `nograph` to true `language` to "c++" (*ie* generates c++ routines instead of julia routines for the model) and `params_derivs_order` to 1 (the preprocessor computes the first order derivates with respect to the parameters).
 """
@@ -342,7 +342,7 @@ julia> @compile "test1.mod" :nograph :savemacro
 Compiles `test1.mod` with options `nograph` and `savemacro` set to true (default is false).
 
 ```julia-repl
-julia> options = @compile "test1" :nograph :language "c++" :params_derivs_order 1
+julia> @compile "test1" :nograph :language "c++" :params_derivs_order 1
 ```
 Compiles `test1.mod` and sets option `nograph` to true `language` to "c++" (*ie* generates c++ routines instead of julia routines for the model) and `params_derivs_order` to 1 (the preprocessor computes the first order derivates with respect to the parameters).
 """
@@ -376,7 +376,7 @@ end
 Compiles a mod file (`modfile` is a string for the name of the mod files with or without extension), default options are used.
 
 ```julia-repl
-julia> options = @compile "test1"
+julia> @compile "test1"
 ```
 Compiles `test1.mod` with default options..
 """
