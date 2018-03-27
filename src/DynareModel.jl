@@ -82,9 +82,13 @@ type Model
     dname::String
     dynare_version::String
     endo::Vector{Endo}
+    endo_nbr::Int
     exo::Vector{Exo}
+    exo_nbr::Int
     exo_det::Vector{ExoDet}
+    exo_det_nbr::Int
     param::Vector{Param}
+    param_nbr::Int
     aux_vars::Vector{AuxVars}
     pred_vars::Vector{Int}
     obs_vars::Vector{Int}
@@ -140,9 +144,13 @@ function dynare_model()
                  "",                    # dname
                  "",                    # dynare_version
                  Vector{Endo}(),        # endo
+                 0,                     # endo_nbr
                  Vector{Exo}(),         # exo
+                 0,                     # exo_nbr
                  Vector{ExoDet}(),      # exo_det
+                 0,                     # exo_det_nbr
                  Vector{Param}(),       # param
+                 0,                     # param_nbr
                  Vector{AuxVars}(),     # aux_vars
                  Vector{Int}(),         # pred_vars
                  Vector{Int}(),         # obs_vars
