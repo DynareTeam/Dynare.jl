@@ -289,19 +289,91 @@ function compile(modfile::AbstractString)
     compile(modfile, opts)
 end
 
-macro dynare(modfiles...)
+"""
+    @dynare(modfiles::Vector{AbstractString}, opts...)
+
+Same as @dynare(modfile::AbstarctString, opts...) but for more than one mod file.
+
+```julia-repl
+julia> @dynare ["test1", "test2"] :nograph :json "compute"
+```
+Compiles `test1.mod` and `test2.mod` with options `:nograph` and `:json`, the objects model_, options_ and oo_ corresponding to thess models
+are respectively stored in a structures named `test1` and `test2`.
+"""
+macro dynare(modfiles::Expr, opts...)
+    options = SetPreprocessorOptions(opts...)
     ex = Expr(:toplevel)
-    if length(modfiles)>1
-        for modfile in modfiles
-            eval(:(compile($modfile)))
-            basename = split(modfile, ".mod"; keep=false)
+    if modfiles.head==:vect
+        for i=1:length(modfiles.args)
+            compile(modfiles.args[i], options)
+            basename = split(modfiles.args[i], ".mod"; keep=false)
             push!(ex.args, Expr(:import, Symbol(basename[1])))
         end
-    else
-        eval(:(compile($modfiles)))
-        basename = split(modfiles[1], ".mod"; keep=false)
-        push!(ex.args, Expr(:importall, Symbol(basename[1])))
+        return ex
     end
+end
+
+"""
+    @dynare(modfiles::Vector{AbstractString})
+
+Same as @dynare(modfile::AbstarctString) but for more than one mod file.
+
+```julia-repl
+julia> @dynare ["test1", "test2"]
+```
+Compiles `test1.mod` and `test2.mod` with default options, the objects model_, options_ and oo_ corresponding to thess models
+are respectively stored in a structures named `test1` and `test2`.
+"""
+macro dynare(modfiles::Expr)
+    options = PreprocessorOptions()
+    ex = Expr(:toplevel)
+    if modfiles.head==:vect
+        for i=1:length(modfiles.args)
+            compile(modfiles.args[i], options)
+            basename = split(modfiles.args[i], ".mod"; keep=false)
+            push!(ex.args, Expr(:import, Symbol(basename[1])))
+        end
+        return ex
+    end
+end
+
+"""
+    @dynare(modfile::AbstractString, opts)
+
+Compiles a mod file (`modfile` is a string for the name of the mod files with or without extension) with non default
+options, and load the generated objects into the workspace.
+
+```julia-repl
+julia> @dynare "test1" :nograph :json "compute"
+```
+Compiles `test1.mod` with options `:nograph` and `:json`, the objects model_, options_ and oo_ corresponding to this model
+are stored in a structure named `test1`.
+"""
+macro dynare(modfile::AbstractString, opts...)
+    ex = Expr(:toplevel)
+    compile(modfile, SetPreprocessorOptions(opts...))
+    basename = split(modfile, ".mod"; keep=false)
+    push!(ex.args, Expr(:import, Symbol(basename[1])))
+    return ex
+end
+
+"""
+    @dynare(modfile::AbstractString)
+
+Compiles a mod file (`modfile` is a string for the name of the mod files with or without extension) with default
+options, and load the generated objects into the workspace.
+
+```julia-repl
+julia> @dynare "test1"
+```
+Compiles `test1.mod` with default options, the objects model_, options_ and oo_ corresponding to this model
+are stored in a structure named `test1`.
+"""
+macro dynare(modfile::AbstractString)
+    ex = Expr(:toplevel)
+    compile(modfile, PreprocessorOptions())
+    basename = split(modfile, ".mod"; keep=false)
+    push!(ex.args, Expr(:import, Symbol(basename[1])))
     return ex
 end
 

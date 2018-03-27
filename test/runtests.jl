@@ -13,4 +13,5 @@ using Base.Test
     include("$(rootdir0)/preprocessor/test-1.jl")
     include("$(rootdir0)/preprocessor/test-2.jl")
     include("$(rootdir0)/preprocessor/test-3.jl")
+    include("$(rootdir0)/preprocessor/test-4.jl")
 end
