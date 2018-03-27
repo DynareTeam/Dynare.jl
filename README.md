@@ -19,7 +19,7 @@ The package is tested against Julia 0.6.x.
 
 Assuming you already have [julia](https://julialang.org/) (version
 0.6.x), just do:
-```julia-repl
+```jl
 	julia> Pkg.clone("https://github.com/DynareTeam/Dynare.jl", "Dynare")
 	julia> Pkg.clone("Dynare", "with-preprocessor")
 	julia> Pkg.build("Dynare")
