@@ -3,7 +3,7 @@ using BinaryProvider
 const verbose = "--verbose" in ARGS
 const prefix = Prefix(get([a for a in ARGS if a != "--verbose"], 1, joinpath(@__DIR__, "usr")))
 
-PREPROCESSOR_VERSION = "b52ded0eb429b0f24eb7f27cdb1b19835a232bb8"
+PREPROCESSOR_VERSION = "46a2272ef929a7acbf276fea2c43089bfc7d0e34"
 REMOTE_PATH = "https://dynare.adjemian.eu/preprocessor/$PREPROCESSOR_VERSION"
 
 products = Product[
@@ -11,11 +11,11 @@ products = Product[
 ]
 
 download_info = Dict(
-    Linux(:i686, :glibc)    => ("$REMOTE_PATH/linux/32/preprocessor.tar.gz", "861dee9c0c7bbacf30d5553de8110933fa4ac56cd028ff15a7a4f2927912f6c1"),
-    Linux(:x86_64, :glibc)  => ("$REMOTE_PATH/linux/64/preprocessor.tar.gz", "e155e7dd8530d9ac80cadf8e41c0ebbfa6297d1b0437bbdc33ddb2867c97348d"),
-    MacOS()                 => ("$REMOTE_PATH/osx/64/preprocessor.tar.gz", "8829a829ef5c01a50e5aefd07ca9a0e126cea71b7f15f0e914c3e90bb17acdb3"),
-    Windows(:i686)          => ("$REMOTE_PATH/windows/32/preprocessor.tar.gz", "7285f9d95f45eb753dc7f3b614fc85dc9dff7584717973f3c28e967fb3a27d4f"),
-    Windows(:x86_64)        => ("$REMOTE_PATH/windows/64/preprocessor.tar.gz", "a05cdfc6388ba4df17a495763fbee6ea15de71de5d01f59a31ba2aa2a2f7c032"),
+    Linux(:i686, :glibc)    => ("$REMOTE_PATH/linux/32/preprocessor.tar.gz", "3e847abfd259e3d21a28a315da322f3b326910e8f1d198efdc0bd200eaea00ec"),
+    Linux(:x86_64, :glibc)  => ("$REMOTE_PATH/linux/64/preprocessor.tar.gz", "bd31db8a0b29f43ba63d8df7a96cde5349851bd72c562200dbfa9d37f5606219"),
+    MacOS()                 => ("$REMOTE_PATH/osx/64/preprocessor.tar.gz", "001fa0ab957623b1e5b01b8b7563b92f960adda79027f054d1f72df8ad60c30b"),
+    Windows(:i686)          => ("$REMOTE_PATH/windows/32/preprocessor.tar.gz", "1be8d8fc8cc798dec811f36525ff5b5fd6bf78e84be659068df30d4cf737eaac"),
+    Windows(:x86_64)        => ("$REMOTE_PATH/windows/64/preprocessor.tar.gz", "32485a1dde052e97b7844d731af1f1c0c47c5154f22e29b71789ffe9a1f25e8c"),
 )
 
 for p in products

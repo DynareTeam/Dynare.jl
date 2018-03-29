@@ -77,6 +77,11 @@ immutable EquationTag
     value::String
 end
 
+type TemporariesInfo
+    static::Vector{Int}
+    dynamic::Vector{Int}
+end
+
 type Model
     fname::String
     dname::String
@@ -137,6 +142,7 @@ type Model
     dynamic::Function
     dynamic_params_derivs::Function
     steady_state::Function
+    temporaries::TemporariesInfo
 end
 
 function dynare_model()
@@ -181,24 +187,25 @@ function dynare_model()
                  0,                     # orig_maximum_exo_lead
                  0,                     # orig_maximum_exo_det_lag
                  0,                     # orig_maximum_exo_det_lead
-                 Matrix{Int}(0,0),         # lead_lag_incidence
-                 zeros(Int64,3),         # nnzderivatives
+                 Matrix{Int}(0,0),      # lead_lag_incidence
+                 zeros(Int64,3),        # nnzderivatives
                  false,                 # analytical_steady_state
                  false,                 # user_written_analytical_steady_state
                  false,                 # static_and_dynamic_models_differ
                  Vector{String}(),      # equation_tags
                  Vector{Int}(),         # exo_names_orig_ord
-                 Matrix{Float64}(0,0),     # sigma_e (Cov matrix of the structural innovations)
-                 Matrix{Float64}(0,0),     # correlation_matrix (Corr matrix of the structural innovations)
-                 Matrix{Float64}(0,0),     # h (Cov matrix of the measurement errors)
-                 Matrix{Float64}(0,0),     # correlation_matrix_me (Cov matrix of the measurement errors)
+                 Matrix{Float64}(0,0),  # sigma_e (Cov matrix of the structural innovations)
+                 Matrix{Float64}(0,0),  # correlation_matrix (Corr matrix of the structural innovations)
+                 Matrix{Float64}(0,0),  # h (Cov matrix of the measurement errors)
+                 Matrix{Float64}(0,0),  # correlation_matrix_me (Cov matrix of the measurement errors)
                  true,                  # sigma_e_is_diagonal
                  Vector{Float64}(),     # params
                  function()end,         # static
                  function()end,         # static_params_derivs
                  function()end,         # dynamic
                  function()end,         # dynamic_params_derivs
-                 function()end          # steady_state
+                 function()end,         # steady_state
+                 TemporariesInfo(zeros(Int,4),zeros(Int,4))  # temporaries
                 )
 end
 
