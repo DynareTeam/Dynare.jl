@@ -14,4 +14,8 @@ using Base.Test
     include("$(rootdir0)/preprocessor/test-2.jl")
     include("$(rootdir0)/preprocessor/test-3.jl")
     include("$(rootdir0)/preprocessor/test-4.jl")
+    include("$(rootdir0)/dynare-solvers/test-1.jl")
+    include("$(rootdir0)/dynare-solvers/test-2.jl")
+    include("$(rootdir0)/steady-state/test-1.jl")
+
 end
