@@ -27,6 +27,7 @@ function clean(basename::String)
     rm("$(basename)Dynamic.jl"; force=true)
     rm("$(basename)Static.jl"; force=true)
     rm("$(basename)SteadyState2.jl"; force=true)
+    rm("$(basename)_set_auxiliary_variables.jl"; force=true)
 end
 
 end
