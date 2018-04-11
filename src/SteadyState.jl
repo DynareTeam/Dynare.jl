@@ -28,6 +28,7 @@ import DynareOutput.Output
 export staticmodule
 export steady, steady!
 export steady_state, steady_state!
+export issteadystate
 
 function steady(model::Model, oo::Output)
     if model.analytical_steady_state || model.user_written_analytical_steady_state
@@ -100,13 +101,10 @@ function steady_state!(model::Model, oo::Output, display::Bool=true)
     steady!(model, oo)
     if !issteadystate(model, oo, oo.steady_state)
         error("Steady state provided in steady state block/file is not correct!")
-    end
-    if issteadystate(oo.steady_state)
+    else
         if display
             display_steady_state(model, oo)
         end
-    else
-        error("Steady state not found!")
     end
 end
 
@@ -144,6 +142,13 @@ function issteadystate(model::Model, oo::Output, ys::Vector{Float64})
     r = zeros(Float64, model.endo_nbr)
     t = zeros(Float64, model.temporaries.static[1])
     model.static(t, r, ys, oo.exo_steady_state, model.params)
+    return norm(r)<1e-6
+end
+
+function issteadystate(model::Model, oo::Output)
+    r = zeros(Float64, model.endo_nbr)
+    t = zeros(Float64, model.temporaries.static[1])
+    model.static(t, r, oo.steady_state, oo.exo_steady_state, model.params)
     return norm(r)<1e-6
 end
 
