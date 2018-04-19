@@ -132,17 +132,17 @@ Solves a system of nonlinear equations of several variables using a trust region
 """
 function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Float64, tolf::Float64, maxiter::Int)
     wa = TrustRegionWA(length(x0))
-    info = trustregion(f!, j!, x0, tolx, tolf, maxiter, wa)
+    info = trustregion(f!, j!, x0, 1.0, tolx, tolf, maxiter, wa)
     return wa.x, info
 end
 
 """
-    trustregion(f!::Function, j!::Function, y0::Vector{Float64}, tolf::Float64, tolx::Float64, maxiter::Int, wa::TrustRegionWA)
+    trustregion(f!::Function, j!::Function, y0::Vector{Float64}, factor::Float64, tolf::Float64, tolx::Float64, maxiter::Int, wa::TrustRegionWA)
 
 Solves a system of nonlinear equations of several variables using a trust region method. This version requires a last argument of type `TrustRegionWA`
 which holds various working arrays. This version of the solver does not instantiate any array. Results of the solver are available in `wa.x` if `info=1`. 
 """
-function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Float64, tolf::Float64, maxiter::Int, wa::TrustRegionWA)
+function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Float64, tolx::Float64, tolf::Float64, maxiter::Int, wa::TrustRegionWA)
     n, iter, info = length(x0), 1, 0
     fnorm, fnorm1 = one(Float64), one(Float64)
     wa.x .= copy(x0)
@@ -189,6 +189,7 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Floa
             if δ<macheps
                 δ = one(Float64)
             end
+            δ *= factor
         else
             wa.fjaccnorm__ .= max.(.1*wa.fjaccnorm__, wa.fjaccnorm)
         end
