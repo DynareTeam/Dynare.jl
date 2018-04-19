@@ -21,25 +21,46 @@ module DynareSolvers
 
 export trustregion
 
+const p1 = .1
+const p5 = .5
+const p001 = .001
+const p0001 = .0001
+const macheps = eps(Float64)
+
+type TrustRegionWA
+    x::Vector{Float64}                   # Vector of unknowns
+    xx::Vector{Float64}                  # Vector of unknowns
+    fval0::Vector{Float64}               # residuals of the non linear equations
+    fval1::Vector{Float64}               # residuals of the non linear equations (next)
+    fjac::Matrix{Float64}                # jacobian matrix of the non linear equations
+    fjaccnorm::Vector{Float64}           # norms of the columns of the Jacobian matrix
+    fjaccnorm__::Vector{Float64}         # copy of fjaccnorm
+    w::Vector{Float64}                   # working array
+    p::Vector{Float64}                   # direction
+    s::Vector{Float64}
+end
+
+function TrustRegionWA(n::Int)
+    TrustRegionWA(Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Matrix{Float64}(n,n),
+                  Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n))
+end
+
+
 """
     dogleg!(x::Vector{Float64}, r::Matrix{Float64}, b::Vector{Float64}, d::Vector{Float64}, δ::Float64)
 
-Given an `n` by `n` matrix `r`, an `n` by 1 vector `d` with non zero entries, an `n` by `1` 
+Given an `n` by `n` matrix `r`, an `n` by 1 vector `d` with non zero entries, an `n` by `1`
 vector `b`, and a positive number δ, the problem is to determine the convex combination `x`
 of the gauss-newton and scaled gradient directions that minimizes (r*x - b) in the least
 squares sense, subject to the restriction that the euclidean norm of d*x be at most delta.
 """
-function dogleg!(x::Vector{Float64}, r::Matrix{Float64}, b::Vector{Float64}, d::Vector{Float64}, δ::Float64)
+function dogleg!(x::Vector{Float64}, r::Matrix{Float64}, b::Vector{Float64}, d::Vector{Float64}, δ::Float64, s::Vector{Float64})
     n = length(x)
-    @assert length(d)==n
-    @assert length(b)==n
-    @assert size(r,1)==n
-    @assert size(r,2)==n
     # Compute the Gauss-Newton direction.
     x .= r\b
     # Compute norm of scaled x.
     qnorm = zero(Float64)
-    @inbounds for i = 1:n
+    @inbounds for i=1:n
         qnorm += (d[i]*x[i])^2
     end
     qnorm = sqrt(qnorm)
@@ -47,17 +68,35 @@ function dogleg!(x::Vector{Float64}, r::Matrix{Float64}, b::Vector{Float64}, d::
         # Gauss-Newton direction is acceptable. There is nothing to do here.
     else
         # Gauss-Newton direction is not acceptable…
-        # Compute the scale gradient direction.
-        s = (r'*b)./d
+        # Compute the scale gradient direction and its norm
+        gnorm = zero(Float64)
+        @inbounds for i=1:n
+            s[i] = zero(Float64)
+            @inbounds for j=1:n
+                s[i] += r[j,i]*b[j]
+            end
+            s[i] /= d[i]
+            gnorm += s[i]*s[i]
+        end
+        gnorm = sqrt(gnorm)
         # Compute the norm of the scaled gradient direction.
-        gnorm = norm(s)
+        # gnorm = norm(s)
         if gnorm>0
             # Normalize and rescale → gradient direction.
+            temp0 = zero(Float64)
             @inbounds for i = 1:n
-                s[i] = s[i]/(gnorm*d[i])
+                s[i] /= gnorm*d[i]
             end
-            temp = norm(r*s)
-            sgnorm = gnorm/(temp*temp)
+            temp0 = zero(Float64)
+            @inbounds for i=1:n
+                temp1 = zero(Float64)
+                @inbounds for j=1:n
+                    temp1 += r[i,j]*s[j]
+                end
+                temp0 += temp1*temp1
+            end
+            temp0 = sqrt(temp0)
+            sgnorm = gnorm/(temp0*temp0)
             if sgnorm<=δ
                 # The scaled gradient direction is not acceptable…
                 # Compute the point along the dogleg at which the
@@ -79,40 +118,44 @@ function dogleg!(x::Vector{Float64}, r::Matrix{Float64}, b::Vector{Float64}, d::
         end
         # Form the appropriate  convex combination of the Gauss-Newton direction and the
         # scaled gradient direction.
-        x .= α*x + (one(Float64)-α)*min(sgnorm, δ)*s
+        temp1 = (one(Float64)-α)*min(sgnorm, δ)
+        @inbounds for i = 1:n
+            x[i] = α*x[i] + temp1*s[i]
+        end
     end
 end
 
 """
-    trustregion(fj::Function, y0::Vector{Float64}, gstep::Float64, tolf::Float64, tolx::Float64, maxiter::Int)
+    trustregion(f!::Function, j!::Function, y0::Vector{Float64}, tolf::Float64, tolx::Float64, maxiter::Int)
 
 Solves a system of nonlinear equations of several variables using a trust region method.
 """
 function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Float64, tolf::Float64, maxiter::Int)
-    macheps = eps(Float64)
+    wa = TrustRegionWA(length(x0))
+    info = trustregion(f!, j!, x0, tolx, tolf, maxiter, wa)
+    return wa.x, info
+end
+
+"""
+    trustregion(f!::Function, j!::Function, y0::Vector{Float64}, tolf::Float64, tolx::Float64, maxiter::Int, wa::TrustRegionWA)
+
+Solves a system of nonlinear equations of several variables using a trust region method. This version requires a last argument of type `TrustRegionWA`
+which holds various working arrays. This version of the solver does not instantiate any array. Results of the solver are available in `wa.x` if `info=1`. 
+"""
+function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Float64, tolf::Float64, maxiter::Int, wa::TrustRegionWA)
     n, iter, info = length(x0), 1, 0
-    p1, p5, p001, p0001 = .1, .5, .001, .0001
-    t1, t2, t3, t4 = .1, .5, .001, 1.0e-4
     fnorm, fnorm1 = one(Float64), one(Float64)
-    x = copy(x0)
-    xx = Vector{Float64}(n)
-    fval0 = Vector{Float64}(n)            # residuals of the non linear equations
-    fval1 = Vector{Float64}(n)            # residuals of the non linear equations (next)
-    fjac = Matrix{Float64}(n,n)           # jacobian matrix of the non linear equations
-    fjaccnorm = Vector{Float64}(n)        # norms of the columns of the Jacobian matrix
-    fjaccnorm__ = Vector{Float64}(n)      # copy of fjaccnorm
-    w = Vector{Float64}(n)
-    p = Vector{Float64}(n)
+    wa.x .= copy(x0)
     # Initial evaluation of the residuals (and compute the norm of the residuals)
     try
-        f!(fval0, x)
-        fnorm = norm(fval0)
+        f!(wa.fval0, wa.x)
+        fnorm = norm(wa.fval0)
     catch
         error("The system of nonlinear equations cannot be evaluated on the initial guess!")
     end
     # Initial evaluation of the Jacobian
     try
-        j!(fjac, x)
+        j!(wa.fjac, wa.x)
     catch
         error("The Jacobian of the system of nonlinear equations cannot be evaluated on the initial guess!")
     end
@@ -124,41 +167,43 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Floa
     while iter<=maxiter && info==0
         # Compute columns norm for the Jacobian matrix.
         @inbounds for i=1:n
-            fjaccnorm[i] = zero(Float64)
+            wa.fjaccnorm[i] = zero(Float64)
             @inbounds for j = 1:n
-                fjaccnorm[i] += fjac[j,i]*fjac[j,i] 
+                wa.fjaccnorm[i] += wa.fjac[j,i]*wa.fjac[j,i]
             end
-            fjaccnorm[i] = sqrt(fjaccnorm[i])
+            wa.fjaccnorm[i] = sqrt(wa.fjaccnorm[i])
         end
         if iter==1
             # On the first iteration, calculate the norm of the scaled vector of unknwonws x
             # and initialize the step bound δ. Scaling is done according to the norms of the
             # columns of the initial jacobian.
             @inbounds for i = 1:n
-                fjaccnorm__[i] = fjaccnorm[i]
+                wa.fjaccnorm__[i] = wa.fjaccnorm[i]
             end
-            fjaccnorm__[find(abs.(fjaccnorm__).<macheps)] = one(Float64)
+            wa.fjaccnorm__[find(abs.(wa.fjaccnorm__).<macheps)] = one(Float64)
             xnorm = zero(Float64)
             @inbounds for i=1:n
-                xnorm += (fjaccnorm__[i]*x[i])^2
+                xnorm += (wa.fjaccnorm__[i]*wa.x[i])^2
             end
-            xnorm = sqrt(xnorm) 
-            δ = max(xnorm, one(Float64))
+            δ = sqrt(xnorm)
+            if δ<macheps
+                δ = one(Float64)
+            end
         else
-            fjaccnorm__ = max.(.1*fjaccnorm__, fjaccnorm)
+            wa.fjaccnorm__ .= max.(.1*wa.fjaccnorm__, wa.fjaccnorm)
         end
         # Determine the direction p (with trust region model defined in dogleg routine).
-        dogleg!(p, fjac, fval0, fjaccnorm__, δ)
+        dogleg!(wa.p, wa.fjac, wa.fval0, wa.fjaccnorm__, δ, wa.s)
         @inbounds for i=1:n
-            w[i] = fval0[i]
+            wa.w[i] = wa.fval0[i]
             @inbounds for j = 1:n
-                w[i] -= fjac[i,j]*p[j]
+                wa.w[i] -= wa.fjac[i,j]*wa.p[j]
             end
         end
         # Compute the norm of p.
         pnorm = zero(Float64)
         @inbounds for i=1:n
-            pnorm += (fjaccnorm__[i]*p[i])^2
+            pnorm += (wa.fjaccnorm__[i]*wa.p[i])^2
         end
         pnorm = sqrt(pnorm)
         # On first iteration adjust the initial step bound.
@@ -167,10 +212,10 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Floa
         end
         # Evaluate the function at xx = x+p and calculate its norm.
         @inbounds for i = 1:n
-            xx[i] = x[i]-p[i]
+            wa.xx[i] = wa.x[i]-wa.p[i]
         end
-        f!(fval1, xx)
-        fnorm1 = norm(fval1)
+        f!(wa.fval1, wa.xx)
+        fnorm1 = norm(wa.fval1)
         # Compute the scaled actual reduction.
         if fnorm1<fnorm
             actualreduction = one(Float64)-(fnorm1/fnorm)^2
@@ -179,7 +224,7 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Floa
         end
         # Compute the scaled predicted reduction and the ratio of the actual to the
         # predicted reduction.
-        t = norm(w)
+        t = norm(wa.w)
         ratio = zero(Float64)
         if t<fnorm
             predictedreduction = one(Float64) - (t/fnorm)^2
@@ -203,9 +248,9 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Floa
             # Succesfull iteration. Update x, xnorm, fval0, fnorm and fjac.
             xnorm = zero(Float64)
             @inbounds for i=1:n
-                x[i] = xx[i]
-                xnorm += (fjaccnorm__[i]*x[i])^2
-                fval0[i] = fval1[i]
+                wa.x[i] = wa.xx[i]
+                xnorm += (wa.fjaccnorm__[i]*wa.x[i])^2
+                wa.fval0[i] = wa.fval1[i]
             end
             xnorm = sqrt(xnorm)
             fnorm = fnorm1
@@ -235,14 +280,14 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Floa
             continue
         end
         # Compute the jacobian for next the iteration.
-        j!(fjac, x)
+        j!(wa.fjac, wa.x)
         iter += 1
     end
     if info==0 && iter>maxiter
         info = 2
-        fill!(x, Inf)
+        fill!(wa.x, Inf)
     end
-    return x, info
+    return info
 end
 
 end
