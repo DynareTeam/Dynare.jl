@@ -129,8 +129,16 @@ end
     trustregion(f!::Function, j!::Function, y0::Vector{Float64}, tolf::Float64, tolx::Float64, maxiter::Int)
 
 Solves a system of nonlinear equations of several variables using a trust region method.
+
+# Arguments
+- `f!::Function`: Function evaluating the residuals of the nonlinear equations to be solved. This function admits two arguments, a vector holding the values of the residuals and the vector of unknowns (to be solved for).
+- `j!::Function`: Function computing the jacobian of the nonlinear equations (derivatives with respect to the unknowns). This function admits two arguments: the jacobian matrix and the vector of unknowns.
+- `x0::Vector{Float64}`: Initial guess for the unknowns.
+- `tolf::Float64`: Positive real scalar used in determining the terminination criterion (test on the values of the residuals). Default is 1e-6.
+- `tolx::Float64`: Positive real scalar used in determining the terminination criterion (test on the change of the unknowns). Default is 1e-6.
+- `maxiter::Int`: Positive integer scalar, maximum number of iterations. Default is 50.
 """
-function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Float64, tolf::Float64, maxiter::Int)
+function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, tolx::Float64=1e-6, tolf::Float64=1e-6, maxiter::Int=50)
     wa = TrustRegionWA(length(x0))
     info = trustregion(f!, j!, x0, 1.0, tolx, tolf, maxiter, wa)
     return wa.x, info
@@ -140,7 +148,17 @@ end
     trustregion(f!::Function, j!::Function, y0::Vector{Float64}, factor::Float64, tolf::Float64, tolx::Float64, maxiter::Int, wa::TrustRegionWA)
 
 Solves a system of nonlinear equations of several variables using a trust region method. This version requires a last argument of type `TrustRegionWA`
-which holds various working arrays. This version of the solver does not instantiate any array. Results of the solver are available in `wa.x` if `info=1`. 
+which holds various working arrays used in the function (avoiding array instantiations). Results of the solver are available in `wa.x` if `info=1`. 
+
+# Arguments
+- `f!::Function`: Function evaluating the residuals of the nonlinear equations to be solved. This function admits two arguments, a vector holding the values of the residuals and the vector of unknowns (to be solved for).
+- `j!::Function`: Function computing the jacobian of the nonlinear equations (derivatives with respect to the unknowns). This function admits two arguments: the jacobian matrix and the vector of unknowns.
+- `x0::Vector{Float64}`: Initial guess for the unknowns.
+- `factor::Float64`: Positive real scalar used in determining the initial step bound. In most cases factor should lie in the interval (.1,100.).
+- `tolf::Float64`: Positive real scalar used in determining the terminination criterion (test on the values of the residuals).
+- `tolx::Float64`: Positive real scalar used in determining the terminination criterion (test on the change of the unknowns).
+- `maxiter::Int`: Positive integer scalar, maximum number of iterations.
+- `wa::TrustRegionWA`: Working arrays.
 """
 function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Float64, tolx::Float64, tolf::Float64, maxiter::Int, wa::TrustRegionWA)
     n, iter, info = length(x0), 1, 0
