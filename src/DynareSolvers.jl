@@ -53,10 +53,7 @@ function dogleg!(x::Vector{Float64}, r::Matrix{Float64}, b::Vector{Float64}, d::
         gnorm = norm(s)
         if gnorm>0
             # Normalize and rescale → gradient direction.
-            @inbounds for i = 1:n
-                s[i] = s[i]/(gnorm*d[i])
-            end
-            temp = norm(r*s)
+            temp = norm(r*(s./(gnorm*d)))
             sgnorm = gnorm/(temp*temp)
             if sgnorm<=δ
                 # The scaled gradient direction is not acceptable…
