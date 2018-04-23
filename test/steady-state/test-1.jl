@@ -95,7 +95,7 @@ steadystate = [1.080683, 0.803593, 11.083609, 0.000000, 0.291756, 0.000000]
     end
     @test begin
         try
-            yinit = [20.0, .1, 30.0, 0.0, .3, 0.1]
+            yinit = [20.0, .1, 3.0, 0.0, .3, 0.1]
             steady!(model, oo, yinit)
             all((oo.steady_state-steadystate).<1.0e-6)
         catch

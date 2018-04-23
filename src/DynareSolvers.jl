@@ -30,7 +30,8 @@ const macheps = eps(Float64)
 type TrustRegionWA
     x::Vector{Float64}                   # Vector of unknowns
     xx::Vector{Float64}                  # Vector of unknowns
-    fval0::Vector{Float64}               # residuals of the non linear equations
+    fval::Vector{Float64}                # residuals of the non linear equations
+    fval0::Vector{Float64}
     fval1::Vector{Float64}               # residuals of the non linear equations (next)
     fjac::Matrix{Float64}                # jacobian matrix of the non linear equations
     fjaccnorm::Vector{Float64}           # norms of the columns of the Jacobian matrix
@@ -41,7 +42,7 @@ type TrustRegionWA
 end
 
 function TrustRegionWA(n::Int)
-    TrustRegionWA(Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Matrix{Float64}(n,n),
+    TrustRegionWA(Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Matrix{Float64}(n,n),
                   Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n), Vector{Float64}(n))
 end
 
@@ -162,12 +163,13 @@ which holds various working arrays used in the function (avoiding array instanti
 """
 function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Float64, tolx::Float64, tolf::Float64, maxiter::Int, wa::TrustRegionWA)
     n, iter, info = length(x0), 1, 0
-    fnorm, fnorm1 = one(Float64), one(Float64)
+    xnorm, xnorm0 = one(Float64), one(Float64)
+    fnorm, fnorm1, fnorm0 = one(Float64), one(Float64), one(Float64)
     wa.x .= copy(x0)
     # Initial evaluation of the residuals (and compute the norm of the residuals)
     try
-        f!(wa.fval0, wa.x)
-        fnorm = norm(wa.fval0)
+        f!(wa.fval, wa.x)
+        fnorm = norm(wa.fval)
     catch
         error("The system of nonlinear equations cannot be evaluated on the initial guess!")
     end
@@ -180,7 +182,6 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
     # Initialize counters
     ncsucc = zero(Int)
     nslow1 = zero(Int)
-    nslow2 = zero(Int)
     # Newton iterations
     while iter<=maxiter && info==0
         # Compute columns norm for the Jacobian matrix.
@@ -212,13 +213,7 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
             wa.fjaccnorm__ .= max.(.1*wa.fjaccnorm__, wa.fjaccnorm)
         end
         # Determine the direction p (with trust region model defined in dogleg routine).
-        dogleg!(wa.p, wa.fjac, wa.fval0, wa.fjaccnorm__, δ, wa.s)
-        @inbounds for i=1:n
-            wa.w[i] = wa.fval0[i]
-            @inbounds for j = 1:n
-                wa.w[i] -= wa.fjac[i,j]*wa.p[j]
-            end
-        end
+        dogleg!(wa.p, wa.fjac, wa.fval, wa.fjaccnorm__, δ, wa.s)
         # Compute the norm of p.
         pnorm = zero(Float64)
         @inbounds for i=1:n
@@ -229,82 +224,133 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
         if iter==1
             δ = min(δ, pnorm)
         end
-        # Evaluate the function at xx = x+p and calculate its norm.
-        @inbounds for i = 1:n
-            wa.xx[i] = wa.x[i]-wa.p[i]
-        end
-        f!(wa.fval1, wa.xx)
-        fnorm1 = norm(wa.fval1)
-        # Compute the scaled actual reduction.
-        if fnorm1<fnorm
-            actualreduction = one(Float64)-(fnorm1/fnorm)^2
-        else
-            actualreduction = -one(Float64)
-        end
-        # Compute the scaled predicted reduction and the ratio of the actual to the
-        # predicted reduction.
-        t = norm(wa.w)
-        ratio = zero(Float64)
-        if t<fnorm
-            predictedreduction = one(Float64) - (t/fnorm)^2
-            ratio = actualreduction/predictedreduction
-        end
-        # Update the radius of the trust region if need be.
-        if ratio<p1
-            # Reduction is much smaller than predicted… Reduce the radius of the trust region.
-            ncsucc = 0
-            δ = p5*δ
-        else
-            ncsucc += 1
-            if ratio>=p5 || ncsucc>1
-                δ = max(δ,pnorm/p5)
-            end
-            if abs(ratio-one(Float64))<p1
-                δ = pnorm/p5
-            end
-        end
-        if ratio>=1.0e-4
-            # Succesfull iteration. Update x, xnorm, fval0, fnorm and fjac.
-            xnorm = zero(Float64)
+        fwrong, jwrong, scale = true, true, one(Float64)
+        while (fwrong || jwrong) && scale>.0005
+            # Move along the direction p. Set a candidate value for x and predicted improvement for f.
             @inbounds for i=1:n
-                wa.x[i] = wa.xx[i]
-                xnorm += (wa.fjaccnorm__[i]*wa.x[i])^2
-                wa.fval0[i] = wa.fval1[i]
+                wa.xx[i] = wa.x[i]-scale*wa.p[i]
+                wa.w[i] = wa.fval[i]
+                @inbounds for j = 1:n
+                    wa.w[i] -= scale*wa.fjac[i,j]*wa.p[j]
+                end
             end
-            xnorm = sqrt(xnorm)
-            fnorm = fnorm1
+            # Evaluate the function at xx = x+p and calculate its norm.
+            try
+                f!(wa.fval1, wa.xx)
+                fwrong = false
+            catch
+                # If evaluation of the residuals returns an error, then keep the same
+                # direction but reduce the step length.
+                scale *= .5
+                continue
+            end
+            fnorm1 = norm(wa.fval1)
+            # Compute the scaled actual reduction.
+            if fnorm1<fnorm
+                actualreduction = one(Float64)-(fnorm1/fnorm)^2
+            else
+                actualreduction = -one(Float64)
+            end
+            # Compute the scaled predicted reduction and the ratio of the actual to the
+            # predicted reduction.
+            t = norm(wa.w)
+            ratio = zero(Float64)
+            if t<fnorm
+                predictedreduction = one(Float64) - (t/fnorm)^2
+                ratio = actualreduction/predictedreduction
+            end
+            # Update the radius of the trust region if need be.
+            δ0 = δ
+            ncsucc0 = ncsucc
+            if ratio<p1
+                # Reduction is much smaller than predicted… Reduce the radius of the trust region.
+                ncsucc = 0
+                δ = p5*δ
+            else
+                ncsucc += 1
+                if ratio>=p5 || ncsucc>1
+                    δ = max(δ,pnorm/p5)
+                end
+                if abs(ratio-one(Float64))<p1
+                    δ = pnorm/p5
+                end
+            end
+            xnorm0 = xnorm
+            fnorm0 = fnorm
+            @inbounds for i=1:n
+                wa.s[i] = wa.x[i]
+                wa.fval0[i] = wa.fval[i]
+            end
+            if ratio>=1.0e-4
+                # Succesfull iteration. Update x, xnorm, fval, fnorm and fjac.
+                xnorm = zero(Float64)
+                @inbounds for i=1:n
+                    # Update of x
+                    wa.x[i] = wa.xx[i]
+                    xnorm += (wa.fjaccnorm__[i]*wa.x[i])^2
+                    # Update fval
+                    wa.fval[i] = wa.fval1[i]
+                end
+                xnorm = sqrt(xnorm)
+                fnorm = fnorm1
+            end
+            # Determine the progress of the iteration.
+            nslow0 = nslow1
+            nslow1 += 1
+            if actualreduction>=p001
+                nslow1 = 0
+            end
+            # Test for convergence.
+            if δ<tolx*xnorm || fnorm<tolf
+                info = 1
+                @goto mainloop
+            end
+            # Tests for termination and stringent tolerances.
+            if p1*max(p1*δ, pnorm)<=macheps*xnorm
+                # xtol is too small. no further improvement in
+                # the approximate solution x is possible.
+                info = 3
+                @goto mainloop
+            end
+            if nslow1==15
+                # iteration is not making good progress, as
+                # measured by the improvement from the last
+                # fifteen iterations.
+                info = 4
+                @goto mainloop
+            end
+            # Compute the jacobian for next the iteration.
+            try
+                j!(wa.fjac, wa.x)
+                jwrong = false
+                iter += 1
+            catch
+                # If evaluation of the jacobian returns an error, then keep the same
+                # direction but reduce the step length.
+                xnorm = xnorm0
+                fnorm = fnorm0
+                δ = δ0
+                ncsucc = ncsucc0
+                nslow1 = nslow0
+                @inbounds for i=1:n
+                    wa.x[i] = wa.s[i]
+                    wa.fval[i] = wa.fval0[i]
+                end
+                scale *= .5
+                jwrong = true
+            end
+            if fwrong || jwrong
+                info = 5
+                fill!(wa.x, Inf)
+                return info
+            end
         end
-        # Determine the progress of the iteration.
-        nslow1 += 1
-        if actualreduction>=p001
-            nslow1 = 0
-        end
-        # Test for convergence.
-        if δ<tolx*xnorm || fnorm<tolf
-            info = 1
-            continue
-        end
-        # Tests for termination and stringent tolerances.
-        if p1*max(p1*δ, pnorm)<=macheps*xnorm
-            # xtol is too small. no further improvement in
-            # the approximate solution x is possible.
-            info = 3
-            continue
-        end
-        if nslow1==15
-            # iteration is not making good progress, as
-            # measured by the improvement from the last
-            # fifteen iterations.
-            info = 4
-            continue
-        end
-        # Compute the jacobian for next the iteration.
-        j!(wa.fjac, wa.x)
-        iter += 1
+        @label mainloop
     end
     if info==0 && iter>maxiter
         info = 2
         fill!(wa.x, Inf)
+        return info
     end
     return info
 end
