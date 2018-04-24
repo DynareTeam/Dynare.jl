@@ -179,9 +179,10 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
     catch
         error("The Jacobian of the system of nonlinear equations cannot be evaluated on the initial guess!")
     end
-    # Initialize counters
-    ncsucc = zero(Int)
-    nslow1 = zero(Int)
+    # Initialize counters.
+    ncsucc, nslow1= zero(Int), zero(Int)
+    # Initialize scale parameter.
+    scale, scale0 = one(Float64), one(Float64)
     # Newton iterations
     while iter<=maxiter && info==0
         # Compute columns norm for the Jacobian matrix.
@@ -224,7 +225,7 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
         if iter==1
             δ = min(δ, pnorm)
         end
-        fwrong, jwrong, scale = true, true, one(Float64)
+        fwrong, jwrong, siter = true, true, 0
         while (fwrong || jwrong) && scale>.0005
             # Move along the direction p. Set a candidate value for x and predicted improvement for f.
             @inbounds for i=1:n
@@ -242,6 +243,7 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
                 # If evaluation of the residuals returns an error, then keep the same
                 # direction but reduce the step length.
                 scale *= .5
+                siter += 1
                 continue
             end
             fnorm1 = norm(wa.fval1)
@@ -337,6 +339,7 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
                     wa.fval[i] = wa.fval0[i]
                 end
                 scale *= .5
+                siter += 1
                 jwrong = true
             end
             if fwrong || jwrong
@@ -345,6 +348,22 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
                 return info
             end
         end
+        # Update the value of the scale parameter.
+        if siter>0
+            # Something went wrong when evaluating the nonlinear equations or the
+            # jacobian matrix, and the scale parameter had to be reduced. The scale
+            # parameter is updated with its average across newton iterations (first
+            # while-loop). This avoids to use the default value of the scale
+            # parameter (1.0) in the following iteration and reduces the number of
+            # iterations. The average value of the scale parameter is recursively
+            # computed.
+            scale = ((iter-1)*scale0+scale)/iter
+        else
+            # Increase the value of the scale parameter by 5 percent if the previous
+            # step provided by the dogleg routine did not cause any trouble...
+            scale = min(scale0*1.05, 1.0)
+        end
+        scale0 = scale
         @label mainloop
     end
     if info==0 && iter>maxiter
