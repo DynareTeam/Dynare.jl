@@ -1,3 +1,5 @@
+__precompile__(true)
+
 module DynareSolvers
 
 ##
@@ -165,7 +167,7 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
     n, iter, info = length(x0), 1, 0
     xnorm, xnorm0 = one(Float64), one(Float64)
     fnorm, fnorm1, fnorm0 = one(Float64), one(Float64), one(Float64)
-    wa.x .= copy(x0)
+    wa.x .= x0
     # Initial evaluation of the residuals (and compute the norm of the residuals)
     try
         f!(wa.fval, wa.x)
