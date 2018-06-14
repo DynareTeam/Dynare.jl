@@ -211,7 +211,7 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
             end
             δ *= factor
         else
-            wa.fjaccnorm__ .= max.(.1*wa.fjaccnorm__, wa.fjaccnorm)
+            wa.fjaccnorm__ .= max.(0.1.*wa.fjaccnorm__, wa.fjaccnorm)
         end
         # Determine the direction p (with trust region model defined in dogleg routine).
         dogleg!(wa.p, wa.fjac, wa.fval, wa.fjaccnorm__, δ, wa.s)
