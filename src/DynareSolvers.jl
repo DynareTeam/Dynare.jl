@@ -21,7 +21,7 @@ module DynareSolvers
  # along with Dynare.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-export trustregion
+export trustregion, TrustRegionWA
 
 const p1 = .1
 const p5 = .5
