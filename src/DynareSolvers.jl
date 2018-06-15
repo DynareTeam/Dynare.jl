@@ -200,9 +200,8 @@ function trustregion(f!::Function, j!::Function, x0::Vector{Float64}, factor::Fl
             # and initialize the step bound δ. Scaling is done according to the norms of the
             # columns of the initial jacobian.
             @inbounds for i = 1:n
-                wa.fjaccnorm__[i] = wa.fjaccnorm[i]
+                wa.fjaccnorm__[i] = abs(wa.fjaccnorm[i] < macheps) ? 1.0 : wa.fjaccnorm[i]
             end
-            wa.fjaccnorm__[find(abs.(wa.fjaccnorm__).<macheps)] = one(Float64)
             xnorm = zero(Float64)
             @inbounds for i=1:n
                 xnorm += (wa.fjaccnorm__[i]*wa.x[i])^2
